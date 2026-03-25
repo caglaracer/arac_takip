@@ -3,32 +3,21 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Araç Takip Sistemi</title>
+<title>Araç Takip Sistemi V2</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
 :root {
-  --bg: #0a0c0f;
-  --panel: #13161b;
-  --card: #1a1d24;
-  --border: #252830;
-  --border2: #30343f;
-  --accent: #f0c040;
-  --accent2: #40d4a0;
-  --danger: #e05555;
-  --text: #eef0f4;
-  --muted: #7a7f8e;
-  --muted2: #555a68;
+  --bg: #0a0c0f; --panel: #13161b; --card: #1a1d24; --border: #252830; --border2: #30343f;
+  --accent: #f0c040; --accent2: #40d4a0; --danger: #e05555; --text: #eef0f4; --muted: #7a7f8e; --muted2: #555a68;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 body{background:var(--bg);color:var(--text);font-family:'IBM Plex Sans',sans-serif;min-height:100vh;}
-
 header{background:var(--panel);border-bottom:2px solid var(--accent);padding:0 1.5rem;display:flex;align-items:center;gap:1.2rem;height:60px;position:sticky;top:0;z-index:100;}
 .logo{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;letter-spacing:4px;color:var(--accent);}
-.logo-sub{font-size:.65rem;color:var(--muted);letter-spacing:2px;text-transform:uppercase;margin-top:-4px;}
 header .spacer{flex:1;}
 .live-clock{font-family:'IBM Plex Mono',monospace;font-size:1rem;color:var(--accent2);}
-.admin-btn{background:transparent;border:1px solid var(--border2);color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:.72rem;letter-spacing:1px;padding:.4rem .9rem;border-radius:3px;cursor:pointer;text-transform:uppercase;transition:all .2s;}
+.admin-btn{background:transparent;border:1px solid var(--border2);color:var(--muted);font-family:'IBM Plex Mono',monospace;font-size:.72rem;padding:.4rem .9rem;border-radius:3px;cursor:pointer;text-transform:uppercase;}
 .admin-btn:hover,.admin-btn.active{border-color:var(--accent);color:var(--accent);}
 .sync-indicator{font-family:'IBM Plex Mono',monospace;font-size:.72rem;color:var(--muted);display:flex;align-items:center;gap:.4rem;}
 .sync-dot{width:7px;height:7px;border-radius:50%;background:var(--muted2);}
@@ -36,22 +25,24 @@ header .spacer{flex:1;}
 .sync-dot.ok{background:var(--accent2);}
 .sync-dot.err{background:var(--danger);}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
-
 .tabs{display:flex;background:var(--panel);border-bottom:1px solid var(--border);padding:0 1.5rem;}
 .tab-btn{background:none;border:none;color:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:.82rem;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;padding:.85rem 1.2rem;cursor:pointer;border-bottom:3px solid transparent;transition:all .2s;position:relative;top:1px;}
 .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
-.tab-btn:hover:not(.active){color:var(--text);}
-
 .page{display:none;padding:1.5rem;max-width:1300px;margin:0 auto;}
 .page.active{display:block;}
-
 .section-title{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:3px;margin-bottom:1.2rem;color:var(--text);}
+
+.office-filter{display:flex;gap:.6rem;margin-bottom:1.5rem;flex-wrap:wrap;}
+.off-btn{background:var(--card);border:1px solid var(--border2);color:var(--muted);padding:.5rem 1.2rem;border-radius:4px;cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:.75rem;transition:all .2s;text-transform:uppercase;}
+.off-btn:hover{color:var(--text);border-color:var(--muted);}
+.off-btn.active{background:var(--accent);color:#000;border-color:var(--accent);font-weight:700;}
+
 .qr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.2rem;}
-.qr-card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:1.5rem;display:flex;flex-direction:column;align-items:center;gap:.9rem;transition:border-color .2s;}
+.qr-card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:1.5rem;display:flex;flex-direction:column;align-items:center;gap:.9rem;transition:all .2s;}
 .qr-card:hover{border-color:var(--accent);}
 .qr-card.out{border-color:var(--danger);}
 .plate-tag{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:4px;color:var(--accent);background:#000;border:2px solid var(--accent);padding:.2rem 1rem;border-radius:3px;}
-.model-label{font-size:.78rem;color:var(--muted);text-align:center;line-height:1.5;}
+.model-label{font-size:.78rem;color:var(--muted);text-align:center;line-height:1.5;min-height:3em;}
 .status-row{display:flex;align-items:center;gap:.5rem;font-size:.78rem;}
 .dot{width:9px;height:9px;border-radius:50%;}
 .dot-ok{background:var(--accent2);box-shadow:0 0 8px var(--accent2);}
@@ -61,992 +52,308 @@ header .spacer{flex:1;}
 .qr-action-btn:hover{filter:brightness(1.1);}
 .qr-action-btn.return-btn{background:var(--danger);color:#fff;}
 
-.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:200;justify-content:center;align-items:center;padding:1rem;}
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:200;justify-content:center;align-items:center;padding:1rem;}
 .overlay.open{display:flex;}
 .modal{background:var(--panel);border:1px solid var(--border2);border-top:3px solid var(--accent);border-radius:6px;width:100%;max-width:520px;max-height:92vh;overflow-y:auto;padding:1.8rem;}
 .modal h2{font-family:'Bebas Neue',sans-serif;font-size:1.7rem;letter-spacing:3px;color:var(--accent);margin-bottom:.2rem;}
-.modal h2.green{color:var(--accent2);}
 .modal-sub{font-size:.75rem;color:var(--muted);letter-spacing:1px;margin-bottom:1.2rem;}
 .stamp-box{background:var(--bg);border:1px solid var(--border);border-left:3px solid var(--accent2);padding:.6rem 1rem;border-radius:3px;font-family:'IBM Plex Mono',monospace;font-size:.8rem;color:var(--accent2);margin-bottom:1rem;}
 .form-row{display:grid;grid-template-columns:1fr 1fr;gap:.9rem;margin-bottom:.9rem;}
 .form-row.full{grid-template-columns:1fr;}
 .form-group label{display:block;font-size:.68rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem;}
-.form-group input,.form-group select,.form-group textarea{width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.88rem;padding:.55rem .75rem;border-radius:3px;outline:none;transition:border-color .2s;}
-.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent);}
+.form-group input,.form-group select,.form-group textarea{width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.88rem;padding:.55rem .75rem;border-radius:3px;outline:none;}
+.form-group input:focus,.form-group select:focus{border-color:var(--accent);}
 .form-group input[readonly]{color:var(--accent2);cursor:default;}
-.form-group textarea{resize:vertical;min-height:65px;}
-.form-group select option{background:var(--panel);}
 .modal-actions{display:flex;gap:.7rem;margin-top:1.2rem;}
-.btn-primary{flex:1;background:var(--accent);color:#000;border:none;font-family:'IBM Plex Mono',monospace;font-size:.88rem;font-weight:700;letter-spacing:1px;padding:.7rem;border-radius:3px;cursor:pointer;text-transform:uppercase;}
-.btn-primary:hover{filter:brightness(1.1);}
-.btn-green{flex:1;background:var(--accent2);color:#000;border:none;font-family:'IBM Plex Mono',monospace;font-size:.88rem;font-weight:700;letter-spacing:1px;padding:.7rem;border-radius:3px;cursor:pointer;text-transform:uppercase;}
-.btn-green:hover{filter:brightness(1.1);}
-.btn-red{flex:1;background:var(--danger);color:#fff;border:none;font-family:'IBM Plex Mono',monospace;font-size:.88rem;font-weight:700;letter-spacing:1px;padding:.7rem;border-radius:3px;cursor:pointer;text-transform:uppercase;}
-.btn-red:hover{filter:brightness(1.15);}
+.btn-primary,.btn-green,.btn-red{flex:1;border:none;font-family:'IBM Plex Mono',monospace;font-size:.88rem;font-weight:700;letter-spacing:1px;padding:.7rem;border-radius:3px;cursor:pointer;text-transform:uppercase;}
+.btn-primary{background:var(--accent);color:#000;}
+.btn-green{background:var(--accent2);color:#000;}
+.btn-red{background:var(--danger);color:#fff;}
 .btn-ghost{background:transparent;color:var(--muted);border:1px solid var(--border2);font-family:'IBM Plex Mono',monospace;font-size:.82rem;padding:.6rem 1rem;border-radius:3px;cursor:pointer;}
-.btn-ghost:hover{color:var(--text);border-color:var(--text);}
 
-.driver-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:.6rem;margin-bottom:.9rem;}
-.driver-chip{background:var(--bg);border:1.5px solid var(--border2);color:var(--muted);font-family:'IBM Plex Sans',sans-serif;font-size:.85rem;padding:.55rem .9rem;border-radius:4px;cursor:pointer;text-align:center;transition:all .2s;}
-.driver-chip:hover{border-color:var(--accent);color:var(--text);}
+.driver-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.6rem;margin-bottom:.9rem;}
+.driver-chip{background:var(--bg);border:1.5px solid var(--border2);color:var(--muted);font-size:.82rem;padding:.55rem .7rem;border-radius:4px;cursor:pointer;text-align:center;transition:all .2s;}
 .driver-chip.selected{background:rgba(240,192,64,.12);border-color:var(--accent);color:var(--accent);font-weight:600;}
 
 .table-controls{display:flex;align-items:center;gap:.9rem;margin-bottom:1.2rem;flex-wrap:wrap;}
 .count-badge{background:var(--accent);color:#000;font-family:'IBM Plex Mono',monospace;font-size:.72rem;font-weight:700;padding:.18rem .55rem;border-radius:2px;}
 .search-box{margin-left:auto;background:var(--card);border:1px solid var(--border2);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.82rem;padding:.45rem .9rem;border-radius:3px;outline:none;width:200px;}
-.search-box:focus{border-color:var(--accent);}
 .tbl-wrap{overflow-x:auto;}
 table.rtbl{width:100%;border-collapse:collapse;font-size:.78rem;font-family:'IBM Plex Mono',monospace;}
-table.rtbl th{background:var(--card);color:var(--muted);font-size:.65rem;letter-spacing:1.5px;text-transform:uppercase;padding:.65rem .7rem;text-align:left;border-bottom:2px solid var(--border);white-space:nowrap;}
+table.rtbl th{background:var(--card);color:var(--muted);font-size:.65rem;letter-spacing:1.5px;text-transform:uppercase;padding:.65rem .7rem;text-align:left;border-bottom:2px solid var(--border);}
 table.rtbl td{padding:.6rem .7rem;border-bottom:1px solid var(--border);vertical-align:middle;}
-table.rtbl tr:hover td{background:rgba(255,255,255,.015);}
-.cell-plate{color:var(--accent);font-weight:600;letter-spacing:2px;}
+.cell-plate{color:var(--accent);font-weight:600;}
 .cell-driver{color:var(--accent2);}
 .badge-open{background:rgba(64,212,160,.12);color:var(--accent2);border:1px solid var(--accent2);font-size:.65rem;padding:.12rem .45rem;border-radius:2px;}
 .badge-closed{background:rgba(100,100,100,.1);color:var(--muted2);border:1px solid var(--border);font-size:.65rem;padding:.12rem .45rem;border-radius:2px;}
-.btn-edit{background:rgba(240,192,64,.15);color:var(--accent);border:1px solid rgba(240,192,64,.3);font-family:'IBM Plex Mono',monospace;font-size:.68rem;padding:.25rem .6rem;border-radius:2px;cursor:pointer;}
-.btn-edit:hover{background:rgba(240,192,64,.3);}
 .empty-state{text-align:center;padding:4rem 2rem;color:var(--muted);}
 
-.admin-section{margin-bottom:2rem;}
-.admin-section h3{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:2px;color:var(--accent2);border-bottom:1px solid var(--border);padding-bottom:.5rem;margin-bottom:1rem;}
-.device-list{display:flex;flex-direction:column;gap:.5rem;}
-.device-row{display:flex;align-items:center;gap:.75rem;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:.65rem 1rem;flex-wrap:wrap;}
-.device-id{font-size:.72rem;color:var(--muted);font-family:'IBM Plex Mono',monospace;flex:1;min-width:120px;word-break:break-all;}
-.device-select{background:var(--card);border:1px solid var(--border2);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:.8rem;padding:.35rem .6rem;border-radius:3px;outline:none;}
-.btn-assign{background:var(--accent);color:#000;border:none;font-family:'IBM Plex Mono',monospace;font-size:.72rem;font-weight:700;padding:.35rem .8rem;border-radius:2px;cursor:pointer;}
-.matched-tag{background:rgba(64,212,160,.12);color:var(--accent2);border:1px solid rgba(64,212,160,.3);font-size:.7rem;padding:.2rem .55rem;border-radius:2px;font-family:'IBM Plex Mono',monospace;}
-
-.loading-spinner{display:inline-block;width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:.4rem;}
-@keyframes spin{to{transform:rotate(360deg);}}
-
-.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--accent2);color:#000;font-family:'IBM Plex Mono',monospace;font-size:.83rem;font-weight:700;padding:.7rem 1.3rem;border-radius:4px;z-index:999;opacity:0;transform:translateY(16px);transition:all .3s;pointer-events:none;}
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--accent2);color:#000;font-family:'IBM Plex Mono',monospace;font-size:.83rem;font-weight:700;padding:.7rem 1.3rem;border-radius:4px;z-index:999;opacity:0;transform:translateY(16px);transition:all .3s;}
 .toast.show{opacity:1;transform:translateY(0);}
 .toast.err{background:var(--danger);color:#fff;}
 
-@media(max-width:640px){
-  .form-row{grid-template-columns:1fr;}
-  .driver-grid{grid-template-columns:1fr 1fr;}
-  .page{padding:1rem;}
-  .tabs{padding:0 .5rem;}
-  .tab-btn{padding:.8rem .7rem;font-size:.73rem;}
-}
-
-/* PASSCODE OVERLAY */
-#entry-lock {
-  position: fixed;
-  inset: 0;
-  background: var(--bg);
-  z-index: 9999;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  padding: 2rem;
-}
-.lock-card {
-  background: var(--panel);
-  border: 1px solid var(--border2);
-  border-top: 4px solid var(--accent);
-  border-radius: 12px;
-  padding: 3rem 2rem;
-  width: 100%;
-  max-width: 360px;
-  text-align: center;
-  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
-}
-.lock-title {
-  font-family: 'Bebas Neue', sans-serif;
-  font-size: 2.2rem;
-  letter-spacing: 4px;
-  color: var(--accent);
-  margin-bottom: 0.5rem;
-}
-.lock-sub {
-  color: var(--muted);
-  font-size: 0.85rem;
-  margin-bottom: 2rem;
-  letter-spacing: 1px;
-}
-.pin-input-group {
-  display: flex;
-  gap: 0.8rem;
-  justify-content: center;
-  margin-bottom: 2rem;
-}
-.pin-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 2px solid var(--border2);
-  transition: all 0.2s;
-}
-.pin-dot.filled {
-  background: var(--accent);
-  border-color: var(--accent);
-  box-shadow: 0 0 10px var(--accent);
-}
-.numpad {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  width: 100%;
-}
-.num-btn {
-  background: var(--card);
-  border: 1px solid var(--border);
-  color: var(--text);
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 1.4rem;
-  padding: 1.2rem 0;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.num-btn:hover {
-  background: var(--border);
-  border-color: var(--accent);
-  color: var(--accent);
-}
-.num-btn:active {
-  transform: scale(0.95);
-}
-.num-btn.clear {
-  color: var(--danger);
-  font-size: 0.9rem;
-}
-
-.qr-search-area {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-  flex-wrap: wrap;
-  align-items: center;
-}
-.pagination {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 2rem;
-  justify-content: center;
-}
-.pg-btn {
-  background: var(--card);
-  border: 1px solid var(--border);
-  color: var(--muted);
-  padding: 0.5rem 0.8rem;
-  border-radius: 4px;
-  cursor: pointer;
-  font-family: 'IBM Plex Mono', monospace;
-}
-.pg-btn.active {
-  background: var(--accent);
-  color: #000;
-  border-color: var(--accent);
-}
-.pg-btn:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
+#entry-lock {position:fixed;inset:0;background:var(--bg);z-index:9999;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:2rem;}
+.lock-card {background:var(--panel);border-top:4px solid var(--accent);border-radius:12px;padding:3rem 2rem;width:100%;max-width:360px;text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.4);}
+.pin-input-group {display:flex;gap:0.8rem;justify-content:center;margin-bottom:2rem;}
+.pin-dot {width:14px;height:14px;border-radius:50%;border:2px solid var(--border2);}
+.pin-dot.filled {background:var(--accent);border-color:var(--accent);box-shadow:0 0 10px var(--accent);}
+.numpad {display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;}
+.num-btn {background:var(--card);border:1px solid var(--border);color:var(--text);font-family:'IBM Plex Mono',monospace;font-size:1.4rem;padding:1.2rem 0;border-radius:8px;cursor:pointer;}
 </style>
 </head>
 <body>
 
-<header>
-  <div>
-    <div class="logo">ARAÇ TAKİP</div>
+<div id="entry-lock">
+  <div class="lock-card">
+    <div class="logo" style="margin-bottom:0.5rem;">SİSTEM KİLİTLİ</div>
+    <div style="color:var(--muted);font-size:.85rem;margin-bottom:2rem;">Kod girin: <strong>4426</strong></div>
+    <div class="pin-input-group">
+      <div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div><div class="pin-dot"></div>
+    </div>
+    <div class="numpad">
+      <button class="num-btn" onclick="pressKey('1')">1</button><button class="num-btn" onclick="pressKey('2')">2</button><button class="num-btn" onclick="pressKey('3')">3</button>
+      <button class="num-btn" onclick="pressKey('4')">4</button><button class="num-btn" onclick="pressKey('5')">5</button><button class="num-btn" onclick="pressKey('6')">6</button>
+      <button class="num-btn" onclick="pressKey('7')">7</button><button class="num-btn" onclick="pressKey('8')">8</button><button class="num-btn" onclick="pressKey('9')">9</button>
+      <button class="num-btn" style="color:var(--danger);" onclick="pressKey('C')">C</button><button class="num-btn" onclick="pressKey('0')">0</button><button class="num-btn" style="color:var(--accent2);" onclick="pressKey('OK')">OK</button>
+    </div>
+    <div id="lock-err" style="color:var(--danger);font-size:.8rem;margin-top:1rem;height:1rem;"></div>
   </div>
+</div>
+
+<header>
+  <div class="logo">ARAÇ TAKİP</div>
   <div class="spacer"></div>
   <div class="sync-indicator">
     <span class="sync-dot" id="sync-dot"></span>
     <span id="sync-label">—</span>
   </div>
-  <div class="live-clock" id="clock" style="margin-left:1rem;"></div>
-  <button class="admin-btn" id="admin-toggle-btn" onclick="toggleAdmin()" style="margin-left:.75rem;">⚙ Admin</button>
+  <div class="live-clock" id="clock"></div>
+  <button class="admin-btn" id="admin-toggle-btn" onclick="toggleAdmin()" style="margin-left:1rem;">⚙ Admin</button>
 </header>
 
 <div class="tabs">
-  <button class="tab-btn active" onclick="switchTab('qr',this)">🚗 Araçlar</button>
+  <button class="tab-btn active" id="tab-qr-btn" onclick="switchTab('qr',this)">🚗 Araçlar</button>
   <button class="tab-btn" onclick="switchTab('records',this)">📋 Kayıtlar</button>
   <button class="tab-btn" id="tab-admin-btn" style="display:none;" onclick="switchTab('admin',this)">🔒 Admin Panel</button>
 </div>
 
-<!-- QR PAGE -->
 <div class="page active" id="page-qr">
-  <div class="qr-search-area">
+  <div class="section-title">OFİS SEÇİMİ</div>
+  <div class="office-filter">
+    <button class="off-btn active" onclick="switchOffice('Tümü',this)">Hepsini Göster</button>
+    <button class="off-btn" onclick="switchOffice('Ankara',this)">Ankara Ofis</button>
+    <button class="off-btn" onclick="switchOffice('Eskişehir',this)">Eskişehir Ofis</button>
+  </div>
+
+  <div class="qr-search-area" style="display:flex;gap:1rem;margin-bottom:1.2rem;align-items:center;">
     <div class="section-title" style="margin:0;">ARAÇLAR</div>
-    <input class="search-box" id="qr-search" placeholder="Plaka ara..." oninput="qrPage=1;renderQR()" style="margin-left:0; width: 220px;">
+    <input class="search-box" id="qr-search" placeholder="Plaka ara..." oninput="renderQR()" style="margin-left:0;width:220px;">
   </div>
   <div class="qr-grid" id="qr-grid"></div>
-  <div class="pagination" id="qr-pagination"></div>
 </div>
 
-<!-- ENTRY LOCK OVERLAY -->
-<div id="entry-lock">
-  <div class="lock-card">
-    <div class="lock-title">SİSTEM KİLİTLİ</div>
-    <div class="lock-sub">Devam etmek için 4 haneli kodu girin</div>
-    <div class="pin-input-group" id="pin-dots">
-      <div class="pin-dot"></div>
-      <div class="pin-dot"></div>
-      <div class="pin-dot"></div>
-      <div class="pin-dot"></div>
-    </div>
-    <div class="numpad">
-      <button class="num-btn" onclick="pressKey('1')">1</button>
-      <button class="num-btn" onclick="pressKey('2')">2</button>
-      <button class="num-btn" onclick="pressKey('3')">3</button>
-      <button class="num-btn" onclick="pressKey('4')">4</button>
-      <button class="num-btn" onclick="pressKey('5')">5</button>
-      <button class="num-btn" onclick="pressKey('6')">6</button>
-      <button class="num-btn" onclick="pressKey('7')">7</button>
-      <button class="num-btn" onclick="pressKey('8')">8</button>
-      <button class="num-btn" onclick="pressKey('9')">9</button>
-      <button class="num-btn clear" onclick="pressKey('C')">SİL</button>
-      <button class="num-btn" onclick="pressKey('0')">0</button>
-      <button class="num-btn clear" onclick="pressKey('OK')">OK</button>
-    </div>
-    <div id="lock-err" style="color:var(--danger); font-size:0.8rem; margin-top:1rem; height:1rem;"></div>
-  </div>
-</div>
-
-<!-- RECORDS PAGE -->
 <div class="page" id="page-records">
   <div class="table-controls">
     <div class="section-title" style="margin:0;">KAYITLAR</div>
     <span class="count-badge" id="rec-count">0</span>
-    <button class="btn-ghost" style="font-size:.75rem;padding:.4rem .8rem;" onclick="loadRecords()">↺ Yenile</button>
-    <input class="search-box" id="search-box" placeholder="Plaka, sürücü..." oninput="renderTable()">
+    <button class="btn-ghost" onclick="loadRecords()">↺ Yenile</button>
+    <input class="search-box" id="search-box" placeholder="Arama..." oninput="renderTable()">
   </div>
   <div class="tbl-wrap">
     <table class="rtbl">
       <thead>
-        <tr>
-          <th>#</th><th>Tarih</th><th>Plaka / Araç</th><th>Sürücü</th>
-          <th>Çıkış KM</th><th>Çıkış Saati</th><th>Amaç</th><th>Güzergah</th>
-          <th>Dönüş KM</th><th>Dönüş Saati</th><th>Fark</th><th>Durum</th>
-        </tr>
+        <tr><th>#</th><th>Tarih</th><th>Plaka</th><th>Sürücü</th><th>Çıkış KM</th><th>Çıkış Saati</th><th>Amaç</th><th>Dönüş Saati</th><th>Fark</th><th>Durum</th></tr>
       </thead>
       <tbody id="rec-body"></tbody>
     </table>
-    <div class="empty-state" id="rec-empty" style="display:none;">
-      <div style="font-size:2.5rem;margin-bottom:.75rem;">📭</div>
-      <div>Henüz kayıt bulunmuyor.</div>
-    </div>
+    <div class="empty-state" id="rec-empty" style="display:none;">Henüz kayıt bulunmuyor.</div>
   </div>
 </div>
 
-<!-- ADMIN PAGE -->
 <div class="page" id="page-admin">
-  <div id="admin-panel">
-    <div class="admin-section">
-      <h3>CİHAZ — SÜRÜCÜ EŞLEŞTİRME</h3>
-      <p style="font-size:.78rem;color:var(--muted);margin-bottom:.9rem;">Kayıt atan cihazlar aşağıda listelenir. Her cihaza sürücü atayarak sonraki kayıtlarda otomatik tanıma sağlayabilirsin.</p>
-      <div class="device-list" id="device-list"></div>
+  <div class="admin-section">
+    <h3 class="section-title">ADMİN DÜZENLEME</h3>
+    <div class="tbl-wrap">
+      <table class="rtbl">
+        <thead>
+          <tr><th>#</th><th>Tarih</th><th>Plaka</th><th>Sürücü</th><th>Durum</th><th>İşlem</th></tr>
+        </thead>
+        <tbody id="admin-rec-body"></tbody>
+      </table>
     </div>
-    <div class="admin-section">
-      <h3>TÜM KAYITLAR (DÜZENLEME)</h3>
-      <div class="tbl-wrap">
-        <table class="rtbl">
-          <thead>
-            <tr><th>#</th><th>Tarih</th><th>Plaka</th><th>Sürücü</th><th>Çıkış KM</th><th>Dönüş KM</th><th>Fark</th><th>Amaç</th><th>Durum</th><th>Düzenle</th></tr>
-          </thead>
-          <tbody id="admin-rec-body"></tbody>
-        </table>
-      </div>
-    </div>
-    <div style="margin-top:1.5rem;display:flex;gap:.7rem;flex-wrap:wrap;">
-      <button class="btn-red" onclick="exportCSV()" style="flex:unset;padding:.6rem 1.5rem;font-size:.8rem;">⬇ CSV İndir</button>
-      <button class="btn-ghost" onclick="loadRecords()">↺ Yenile</button>
-    </div>
+    <button class="btn-red" style="margin-top:1.5rem;" onclick="exportCSV()">⬇ CSV İndir</button>
   </div>
 </div>
 
-<!-- MODAL: CHECKOUT -->
 <div class="overlay" id="m-checkout">
   <div class="modal">
     <h2>ARAÇ ÇIKIŞ</h2>
     <div class="modal-sub" id="mc-sub"></div>
     <div class="stamp-box" id="mc-stamp"></div>
-    <div style="font-size:.75rem;color:var(--muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:.5rem;">Sürücü Seçin</div>
+    <div style="font-size:.7rem;color:var(--muted);margin-bottom:.5rem;">SÜRÜCÜ SEÇİN</div>
     <div class="driver-grid" id="mc-drivers"></div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Çıkış KM</label>
-        <input type="number" id="mc-km" placeholder="Örn: 45320" min="0">
-      </div>
-      <div class="form-group">
-        <label>Kullanım Amacı</label>
-        <input type="text" id="mc-purpose" placeholder="Servis, Toplantı...">
-      </div>
-    </div>
-    <div class="form-row full">
-      <div class="form-group">
-        <label>Güzergah</label>
-        <textarea id="mc-route" placeholder="Ankara → Eskişehir → Ankara"></textarea>
-      </div>
-    </div>
-    <div class="form-row full">
-      <div class="form-group">
-        <label>Cihaz (otomatik)</label>
-        <input type="text" id="mc-device" readonly>
-      </div>
-    </div>
+    <div class="form-row"><div class="form-group"><label>Çıkış KM</label><input type="number" id="mc-km"></div><div class="form-group"><label>Amaç</label><input type="text" id="mc-purpose"></div></div>
+    <div class="form-row full"><div class="form-group"><label>Güzergah</label><textarea id="mc-route"></textarea></div></div>
     <div class="modal-actions">
-      <button class="btn-primary" id="mc-submit-btn" onclick="confirmCheckout()">✅ ÇIKIŞ KAYDET</button>
-      <button class="btn-ghost" onclick="closeOverlay('m-checkout')">İptal</button>
+      <button class="btn-primary" id="mc-sub-btn" onclick="confirmCheckout()">✅ GÖNDER</button>
+      <button class="btn-ghost" onclick="closeOverlay('m-checkout')">KAPAT</button>
     </div>
   </div>
 </div>
 
-<!-- MODAL: RETURN -->
 <div class="overlay" id="m-return">
   <div class="modal">
     <h2>ARAÇ DÖNÜŞ</h2>
     <div class="modal-sub" id="mr-sub"></div>
     <div class="stamp-box" id="mr-stamp"></div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Sürücü</label>
-        <input type="text" id="mr-driver" readonly>
-      </div>
-      <div class="form-group">
-        <label>Çıkış KM</label>
-        <input type="text" id="mr-ckm" readonly>
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Dönüş Saati</label>
-        <input type="text" id="mr-time" readonly>
-      </div>
-      <div class="form-group">
-        <label>Dönüş KM</label>
-        <input type="number" id="mr-km" placeholder="Teslim anındaki km" min="0">
-      </div>
-    </div>
-    <div class="form-row full">
-      <div class="form-group">
-        <label>Cihaz (otomatik)</label>
-        <input type="text" id="mr-device" readonly>
-      </div>
-    </div>
+    <div class="form-row"><div class="form-group"><label>Sürücü</label><input type="text" id="mr-drv" readonly></div><div class="form-group"><label>Dönüş KM</label><input type="number" id="mr-km"></div></div>
     <div class="modal-actions">
-      <button class="btn-red" id="mr-submit-btn" onclick="confirmReturn()">🏁 DÖNÜŞ KAYDET</button>
-      <button class="btn-ghost" onclick="closeOverlay('m-return')">İptal</button>
+      <button class="btn-red" id="mr-sub-btn" onclick="confirmReturn()">🏁 KAYDET</button>
+      <button class="btn-ghost" onclick="closeOverlay('m-return')">KAPAT</button>
     </div>
   </div>
 </div>
 
-<!-- MODAL: EDIT -->
-<div class="overlay" id="m-edit">
-  <div class="modal">
-    <h2 class="green">KAYIT DÜZENLE</h2>
-    <div class="modal-sub" id="me-sub"></div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Sürücü</label>
-        <select id="me-driver">
-          <option value="">— Seçin —</option>
-          <option>Ersin Güler</option><option>Çağrı Deniz</option>
-          <option>Batuhan Albayrak</option><option>Sercan Albayrak</option>
-          <option>Çağlar Acer</option><option>Şafak Ünal</option>
-          <option>Serkan Ünal</option><option>Orkun Yürekli</option>
-        </select>
-      </div>
-      <div class="form-group">
-        <label>Tarih</label>
-        <input type="text" id="me-date">
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Çıkış KM</label><input type="number" id="me-ckm" min="0"></div>
-      <div class="form-group"><label>Çıkış Saati</label><input type="text" id="me-ctime"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Dönüş KM</label><input type="number" id="me-rkm" min="0"></div>
-      <div class="form-group"><label>Dönüş Saati</label><input type="text" id="me-rtime"></div>
-    </div>
-    <div class="form-row full">
-      <div class="form-group"><label>Kullanım Amacı</label><input type="text" id="me-purpose"></div>
-    </div>
-    <div class="form-row full">
-      <div class="form-group"><label>Güzergah</label><textarea id="me-route"></textarea></div>
-    </div>
-    <div class="modal-actions">
-      <button class="btn-green" id="me-submit-btn" onclick="saveEdit()">💾 KAYDET</button>
-      <button class="btn-ghost" onclick="closeOverlay('m-edit')">İptal</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: ADMIN LOGIN -->
 <div class="overlay" id="m-admin-login">
-  <div class="modal" style="max-width:340px;">
-    <h2 class="green">ADMİN GİRİŞ</h2>
-    <div class="modal-sub">Şifreyi girin</div>
-    <div class="form-row full">
-      <div class="form-group">
-        <label>Şifre</label>
-        <input type="password" id="admin-pw" placeholder="••••••" onkeydown="if(event.key==='Enter')checkAdminLogin()">
-      </div>
-    </div>
-    <div id="login-err" style="font-size:.78rem;color:var(--danger);margin-bottom:.5rem;min-height:1rem;"></div>
-    <div class="modal-actions">
-      <button class="btn-green" onclick="checkAdminLogin()">GİRİŞ</button>
-      <button class="btn-ghost" onclick="closeOverlay('m-admin-login')">İptal</button>
-    </div>
+  <div class="modal" style="max-width:320px;">
+    <h2>ADMİN GİRİŞ</h2>
+    <div class="form-row full"><div class="form-group"><label>Şifre</label><input type="password" id="admin-pw" onkeydown="if(event.key==='Enter')checkAdminLogin()"></div></div>
+    <div id="login-err" style="color:var(--danger);font-size:.78rem;margin-bottom:.5rem;"></div>
+    <div class="modal-actions"><button class="btn-primary" onclick="checkAdminLogin()">GİRİŞ</button><button class="btn-ghost" onclick="closeOverlay('m-admin-login')">İPTAL</button></div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-// ── CONFIG ──
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxc_uTqJ3engLKLYeQ0rnfZW4ojLpcfjRetPT0Y3KOaUGPD17TKlrexFXseoo6bZUG8/exec';
-const HASH_ADMIN = '0a0e64b913d0db658973fda803e2f8eb936d9376675fdc3512139ce55cbedebf'; // SHA-256 for Feal7503
-const HASH_ENTRY = 'fca13bfeed47a54af1e745f6fa45da1f8df39fc43f98498a44700efad40c4e5c'; // SHA-256 for 4426
-const DRIVERS = ['Ersin Güler','Çağrı Deniz','Batuhan Albayrak','Sercan Albayrak','Çağlar Acer','Şafak Ünal','Serkan Ünal','Orkun Yürekli'];
-const VEHICLES = [
-  {id:'v1', plate:'06 FU 5622', model:'JETTA'},
-  {id:'v2', plate:'06 AER 534', model:'DUSTER'},
-  {id:'v3', plate:'06 FU 5630', model:'JETTA'},
-  {id:'v4', plate:'06 FU 5629', model:'JETTA'},
-  {id:'v5', plate:'06 FP 4055', model:'SYMBOL'},
-  {id:'v6', plate:'72 AV 949', model:'FORD CARGO'},
-  {id:'v7', plate:'06 ACL 286', model:'DUSTER'},
-  {id:'v8', plate:'08 K 5437', model:'ISUZU NPR'},
-  {id:'v9', plate:'06 AER 102', model:'DUSTER'},
-  {id:'v10', plate:'06 AER 103', model:'DUSTER'},
-  {id:'v11', plate:'35 FL 902', model:'FORD CARGO'},
-  {id:'v12', plate:'10 VZ 403', model:'FORD TRANSİT 330 M Ç.K. KAMYONET'},
-  {id:'v13', plate:'06 AFM 446', model:'DUSTER'},
-  {id:'v14', plate:'06 AFM 449', model:'DUSTER'},
-  {id:'v15', plate:'06 AFM 450', model:'DUSTER'},
-  {id:'v16', plate:'06 AFM 452', model:'DUSTER'},
-  {id:'v17', plate:'06 AFM 455', model:'DUSTER'},
-  {id:'v18', plate:'06 AFM 458', model:'DUSTER'},
-  {id:'v19', plate:'06 AFM 459', model:'DUSTER'},
-  {id:'v20', plate:'06 AFM 461', model:'DUSTER'},
-  {id:'v21', plate:'41 U 2493', model:'FORD TRANSİT Ç.K. KAMYONET 6'},
-  {id:'v22', plate:'06 BFK 860', model:'PASSAT 1.4 TSI PS COMFORTLİNE TİPTR'},
-  {id:'v23', plate:'06 BOS 072', model:'PASSAT 1.6 TDI SCR 120 PS BUSİNESS DSG'},
-  {id:'v24', plate:'06 BRL 663', model:'VW TRANSPORTER 2.0 TDI 150 HP Cityvan LWB Man. 5+1 Uzun Şase / NORTHECH A.Ş.'},
-  {id:'v25', plate:'06 PR 875', model:'MERCEDEZ-BENZ UNİMOG / ÖZEL AMAÇLI VİNÇLİ AÇIK SAC KASALI RAY BAKIM ARACI'},
-  {id:'v26', plate:'26 AFU 255', model:'SKODA SCALA HATCBACK OTOMATİK VİTES IOTECH A.Ş.'},
-  {id:'v27', plate:'26 ADK 358', model:'VW CADDY KOMBİ 2.0 TDI SCR BMT 102 HP EXCLISİVE DSG NORTHTECH A.Ş.'},
-  {id:'v28', plate:'10 ABY 366', model:'CF MOTO / CF-150-3 MOTOSİKLET NORTHTECH A..Ş.'},
-  {id:'v29', plate:'06 EUG 081', model:'RENAULT Trafic Combi 5+1 Grand Confort 6 m3 20 Blue dCi EDC 170 bg D-Full OTM VTS'},
-];
+const HASH_ADMIN = '0a0e64b913d0db658973fda803e2f8eb936d9376675fdc3512139ce55cbedebf'; // Feal7503
+const HASH_ENTRY = 'fca13bfeed47a54af1e745f6fa45da1f8df39fc43f98498a44700efad40c4e5c'; // 4426
 
-let records = [];
-let deviceMap = JSON.parse(localStorage.getItem('arac_devices')||'{}');
+let RECORDS = [], VEHICLES = [], DRIVERS = [];
+let currentOffice = 'Tümü';
 let adminLoggedIn = false;
-let activeVehicle = null;
-let activeRecord = null;
-let editingId = null;
-let selectedDriver = '';
+let activeVehicle = null, activeRecord = null;
 let currentPin = '';
-let qrPage = 1;
-const qrPageSize = 10;
 
-// ── HASHING ──
-async function sha256(str) {
-  const buf = new TextEncoder().encode(str);
-  const hash = await crypto.subtle.digest('SHA-256', buf);
-  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+async function sha256(s){const b=new TextEncoder().encode(s);const h=await crypto.subtle.digest('SHA-256',b);return Array.from(new Uint8Array(h)).map(x=>x.toString(16).padStart(2,'0')).join('');}
+
+async function pressKey(k){
+  if(k==='C'){currentPin='';} else if(k==='OK'){ if(currentPin.length===4){ const h=await sha256(currentPin); if(h===HASH_ENTRY){document.getElementById('entry-lock').style.display='none';sessionStorage.setItem('unlocked','true');loadRecords();}else{document.getElementById('lock-err').textContent='Hatalı!';currentPin='';}}} else if(currentPin.length<4){currentPin+=k;}
+  const dots=document.querySelectorAll('.pin-dot'); dots.forEach((d,i)=>d.className='pin-dot'+(i<currentPin.length?' filled':''));
+  if(currentPin.length===4 && k!=='OK') setTimeout(()=>pressKey('OK'),200);
+}
+if(sessionStorage.getItem('unlocked')==='true') document.getElementById('entry-lock').style.display='none';
+
+function switchOffice(off, btn){
+  currentOffice = off;
+  document.querySelectorAll('.off-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderQR();
 }
 
-// ── ENTRY LOCK ──
-async function pressKey(k) {
-  const dots = document.querySelectorAll('.pin-dot');
-  if(k === 'C') {
-    currentPin = '';
-  } else if(k === 'OK') {
-    if(currentPin.length < 4) return;
-    const h = await sha256(currentPin);
-    if(h === HASH_ENTRY) {
-      document.getElementById('entry-lock').style.display = 'none';
-      sessionStorage.setItem('unlocked', 'true');
-    } else {
-      document.getElementById('lock-err').textContent = 'Hatalı kod!';
-      currentPin = '';
-      setTimeout(() => document.getElementById('lock-err').textContent = '', 2000);
-    }
-  } else if(currentPin.length < 4) {
-    currentPin += k;
-  }
-  
-  dots.forEach((d, i) => {
-    if(i < currentPin.length) d.classList.add('filled');
-    else d.classList.remove('filled');
-  });
-
-  if(currentPin.length === 4 && k !== 'OK' && k !== 'C') {
-    // Auto check or wait for OK? User asked for 4426, let's wait for OK or auto-check
-    // Adding auto check for better UX
-    setTimeout(async () => {
-      if(currentPin.length === 4) {
-        const h = await sha256(currentPin);
-        if(h === HASH_ENTRY) {
-          document.getElementById('entry-lock').style.display = 'none';
-          sessionStorage.setItem('unlocked', 'true');
-        }
-      }
-    }, 300);
-  }
-}
-
-if(sessionStorage.getItem('unlocked') === 'true') {
-  document.getElementById('entry-lock').style.display = 'none';
-}
-
-// ── CLOCK ──
-setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleTimeString('tr-TR');},1000);
-document.getElementById('clock').textContent=new Date().toLocaleTimeString('tr-TR');
-
-// ── SYNC UI ──
-function setSyncState(state, label){
-  const dot = document.getElementById('sync-dot');
-  const lbl = document.getElementById('sync-label');
-  dot.className = 'sync-dot ' + state;
-  lbl.textContent = label;
-}
-
-// ── DEVICE ──
-function getDeviceId(){
-  let id=localStorage.getItem('device_id');
-  if(!id){id='dev_'+Math.random().toString(36).slice(2,10)+'_'+Date.now().toString(36);localStorage.setItem('device_id',id);}
-  return id;
-}
-function getDeviceLabel(){
-  const ua=navigator.userAgent;
-  if(/iPhone/.test(ua)) return 'iPhone';
-  if(/iPad/.test(ua)) return 'iPad';
-  if(/Android/.test(ua)){const m=ua.match(/Android [^;]+; ([^)]+)/);return m?'Android: '+m[1].trim().split(' ').slice(0,2).join(' '):'Android';}
-  if(/Windows/.test(ua)) return 'Windows PC';
-  if(/Mac/.test(ua)) return 'Mac';
-  return 'Cihaz';
-}
-function getDeviceInfo(){return getDeviceLabel()+' #'+getDeviceId().slice(4,10);}
-function getKnownDriver(){return deviceMap[getDeviceId()]||'';}
-function saveDeviceMap(){localStorage.setItem('arac_devices',JSON.stringify(deviceMap));}
-
-// ── GOOGLE SHEETS API ──
-async function sheetPost(payload){
-  setSyncState('syncing','Kaydediliyor...');
-  try {
-    const res = await fetch(SCRIPT_URL, {
-      method:'POST',
-      body: JSON.stringify(payload),
-    });
-    const data = await res.json();
-    setSyncState('ok','Senkronize');
-    return data;
-  } catch(e){
-    setSyncState('err','Bağlantı hatası');
-    throw e;
-  }
-}
+function setSync(s,l){const d=document.getElementById('sync-dot');const lb=document.getElementById('sync-label');d.className='sync-dot '+s;lb.textContent=l;}
 
 async function loadRecords(){
-  setSyncState('syncing','Yükleniyor...');
+  setSync('syncing','Bağlanıyor...');
   try {
-    const res = await fetch(SCRIPT_URL);
-    const data = await res.json();
-    if(data.ok){
-      // Map sheet rows to record objects
-      records = (data.records||[]).map(r => ({
-        id: r['ID'],
-        date: r['Tarih'],
-        plate: r['Plaka'],
-        model: r['Araç Modeli'],
-        driver: r['Sürücü'],
-        checkoutKm: r['Çıkış KM'] ? Number(r['Çıkış KM']) : null,
-        checkoutTime: r['Çıkış Saati'],
-        purpose: r['Kullanım Amacı'],
-        route: r['Güzergah'],
-        returnKm: r['Dönüş KM'] ? Number(r['Dönüş KM']) : null,
-        returnTime: r['Dönüş Saati']||'',
-        checkoutDevice: r['Çıkış Cihaz'],
-        returnDevice: r['Dönüş Cihaz'],
-        status: r['Durum'],
-      }));
-      setSyncState('ok', 'Senkronize · '+new Date().toLocaleTimeString('tr-TR',{hour:'2-digit',minute:'2-digit'}));
-      renderQR();
-      renderTable();
-      if(adminLoggedIn) renderAdmin();
+    const r=await fetch(SCRIPT_URL); const d=await r.json();
+    if(d.ok){
+      RECORDS = d.records || [];
+      VEHICLES = d.vehicles || [];
+      DRIVERS = d.drivers || [];
+      setSync('ok','Güncel');
+      renderQR(); renderTable(); if(adminLoggedIn) renderAdmin();
     }
-  } catch(e){
-    setSyncState('err','Bağlantı hatası');
-    showToast('Google Sheets bağlantısı kurulamadı', true);
-  }
+  } catch(e){ setSync('err','Bağlantı Yok'); }
 }
 
-// ── VEHICLE STATE ──
-function isOut(vid){return records.some(r=>r.plate===VEHICLES.find(v=>v.id===vid)?.plate && (!r.returnTime||r.returnTime==='')&& r.status==='AÇIK');}
-function getOpenRec(vid){
-  const plate=VEHICLES.find(v=>v.id===vid)?.plate;
-  return records.find(r=>r.plate===plate&&(!r.returnTime||r.returnTime==='')&&r.status==='AÇIK');
-}
-
-// ── TABS ──
-function switchTab(tab,btn){
-  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  document.getElementById('page-'+tab).classList.add('active');
-  if(btn) btn.classList.add('active');
-  if(tab==='records') renderTable();
-  if(tab==='admin'){renderAdmin();loadRecords();}
-}
-
-// ── ADMIN ──
-function toggleAdmin(){
-  if(adminLoggedIn){
-    document.getElementById('tab-admin-btn').style.display='';
-    switchTab('admin',document.getElementById('tab-admin-btn'));
-    document.getElementById('admin-toggle-btn').classList.add('active');
-  } else {
-    document.getElementById('m-admin-login').classList.add('open');
-  }
-}
-async function checkAdminLogin(){
-  const pw=document.getElementById('admin-pw').value;
-  const h = await sha256(pw);
-  if(h === HASH_ADMIN){
-    adminLoggedIn=true;
-    closeOverlay('m-admin-login');
-    document.getElementById('admin-pw').value='';
-    document.getElementById('login-err').textContent='';
-    document.getElementById('tab-admin-btn').style.display='';
-    document.getElementById('admin-toggle-btn').classList.add('active');
-    switchTab('admin',document.getElementById('tab-admin-btn'));
-  } else {
-    document.getElementById('login-err').textContent='Şifre hatalı!';
-  }
-}
-
-// ── QR ──
-let qrRendered = false;
 function renderQR(){
   const grid=document.getElementById('qr-grid');
-  const search = (document.getElementById('qr-search').value||'').toLowerCase();
-  
-  let filtered = VEHICLES.filter(v => 
-    v.plate.toLowerCase().includes(search) || 
-    v.model.toLowerCase().includes(search)
-  );
-
-  const total = filtered.length;
-  const start = (qrPage - 1) * qrPageSize;
-  const end = start + qrPageSize;
-  const paginated = filtered.slice(start, end);
-
+  const q=(document.getElementById('qr-search').value||'').toLowerCase();
+  let filtered = VEHICLES.filter(v => (currentOffice==='Tümü' || v.Lokasyon === currentOffice) && (v.Plaka.toLowerCase().includes(q) || v.Model.toLowerCase().includes(q)));
   grid.innerHTML='';
-  qrRendered=false;
-  
-  paginated.forEach(v=>{
-    const rec = getOpenRec(v.id);
-    const out=!!rec;
-    const card=document.createElement('div');
-    card.className='qr-card'+(out?' out':'');
-    const ml=v.model.replace(/\n/g, '<br>');
-    const statusText = out ? `ZİMMETLİ: ${rec.driver}` : 'MÜSAİT';
-    
-    card.innerHTML=`
-      <div class="plate-tag">${v.plate}</div>
-      <div class="model-label">${ml}</div>
-      <div class="status-row"><span class="dot ${out?'dot-out':'dot-ok'}"></span><span style="font-size:.78rem;color:var(--muted);">${statusText}</span></div>
-      <div class="qr-wrap" id="qr-${v.id}"></div>
-      <button class="qr-action-btn ${out?'return-btn':''}" onclick="openAction('${v.id}')">${out?'🏁 DÖNÜŞ KAYDI':'🚗 ARAÇ AL'}</button>
+  filtered.forEach(v=>{
+    const rec = RECORDS.find(r=>r.Plaka===v.Plaka && r.Durum==='AÇIK');
+    const out = !!rec;
+    const div=document.createElement('div'); div.className='qr-card'+(out?' out':'');
+    div.innerHTML=`
+      <div class="plate-tag">${v.Plaka}</div>
+      <div class="model-label" style="font-size:.65rem;">${v.Model} <br> <span style="color:var(--accent2);">${v.Lokasyon || ''}</span></div>
+      <div class="status-row"><span class="dot ${out?'dot-out':'dot-ok'}"></span><span>${out?'ZİMMETLİ: '+rec.Sürücü:'MÜSAİT'}</span></div>
+      <div class="qr-wrap" id="qr-${v.Plaka.replace(/ /g,'')}"></div>
+      <button class="qr-action-btn ${out?'return-btn':''}" onclick="openAction('${v.Plaka}')">${out?'🏁 DÖNÜŞ YAP':'🚗 ARAÇ AL'}</button>
     `;
-    grid.appendChild(card);
-    const url=location.href.split('?')[0]+'?v='+v.id;
-    new QRCode(document.getElementById('qr-'+v.id),{text:url,width:140,height:140,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
+    grid.appendChild(div);
+    new QRCode(document.getElementById('qr-'+v.Plaka.replace(/ /g,'')),{text:location.href.split('?')[0]+'?p='+v.Plaka,width:120,height:120});
   });
-  
-  renderPagination(total);
-  qrRendered=true;
 }
 
-function renderPagination(total) {
-  const container = document.getElementById('qr-pagination');
-  const maxPage = Math.ceil(total / qrPageSize);
-  if(maxPage <= 1) { container.innerHTML = ''; return; }
-  
-  let html = `<button class="pg-btn" ${qrPage===1?'disabled':''} onclick="qrPage--;renderQR()">«</button>`;
-  for(let i=1; i<=maxPage; i++) {
-    html += `<button class="pg-btn ${qrPage===i?'active':''}" onclick="qrPage=${i};renderQR()">${i}</button>`;
-  }
-  html += `<button class="pg-btn" ${qrPage===maxPage?'disabled':''} onclick="qrPage++;renderQR()">»</button>`;
-  container.innerHTML = html;
+function openAction(plate){
+  activeVehicle = VEHICLES.find(v=>v.Plaka===plate);
+  const rec = RECORDS.find(r=>r.Plaka===plate && r.Durum==='AÇIK');
+  if(rec){ activeRecord=rec; openReturn(); } else { openCheckout(); }
 }
 
-// ── ACTION ROUTER ──
-function openAction(vid){
-  activeVehicle=VEHICLES.find(v=>v.id===vid);
-  if(!activeVehicle)return;
-  if(isOut(vid)) openReturnModal();
-  else openCheckoutModal();
-}
-
-// ── CHECKOUT ──
-function openCheckoutModal(){
-  const now=new Date();
-  const knownDriver=getKnownDriver();
-  selectedDriver=knownDriver||'';
-  document.getElementById('mc-sub').textContent=activeVehicle.plate+' — '+activeVehicle.model.replace('\n',' ');
-  document.getElementById('mc-stamp').innerHTML='⏱ Çıkış damgası: <strong>'+now.toLocaleDateString('tr-TR')+' '+now.toLocaleTimeString('tr-TR')+'</strong>';
-  document.getElementById('mc-km').value='';
-  document.getElementById('mc-purpose').value='';
-  document.getElementById('mc-route').value='';
-  document.getElementById('mc-device').value=getDeviceInfo();
-  const dg=document.getElementById('mc-drivers');
-  dg.innerHTML=DRIVERS.map(d=>`<div class="driver-chip${selectedDriver===d?' selected':''}" onclick="selectDriver(this,'${d}')">${d}</div>`).join('');
+function openCheckout(){
+  document.getElementById('mc-sub').textContent = activeVehicle.Plaka + ' / ' + activeVehicle.Model;
+  document.getElementById('mc-stamp').innerHTML = '⏱ Çıkış Saati: ' + new Date().toLocaleTimeString('tr-TR');
+  const dGrid = document.getElementById('mc-drivers');
+  const ofisSuruculeri = DRIVERS.filter(d => d.Lokasyon === activeVehicle.Lokasyon || currentOffice === 'Tümü');
+  dGrid.innerHTML = ofisSuruculeri.map(d => `<div class="driver-chip" onclick="selDrv(this,'${d['Ad Soyad']}')">${d['Ad Soyad']}</div>`).join('');
   document.getElementById('m-checkout').classList.add('open');
-}
-function selectDriver(el,name){
-  document.querySelectorAll('#mc-drivers .driver-chip').forEach(c=>c.classList.remove('selected'));
-  el.classList.add('selected');
-  selectedDriver=name;
-}
-async function confirmCheckout(){
-  if(!selectedDriver){showToast('Sürücü seçin!',true);return;}
-  const km=document.getElementById('mc-km').value;
-  if(!km){showToast('Çıkış KM girilmeli!',true);return;}
-  const now=new Date();
-  const devId=getDeviceId();
-  if(!deviceMap[devId]){deviceMap[devId]=selectedDriver;saveDeviceMap();}
-  const rec={
-    action:'checkout',
-    id: Date.now(),
-    vehicleId:activeVehicle.id,
-    plate:activeVehicle.plate,
-    model:activeVehicle.model.replace('\n',' '),
-    date:now.toLocaleDateString('tr-TR'),
-    driver:selectedDriver,
-    checkoutKm:parseInt(km),
-    checkoutTime:now.toLocaleTimeString('tr-TR'),
-    purpose:document.getElementById('mc-purpose').value,
-    route:document.getElementById('mc-route').value,
-    checkoutDevice:getDeviceInfo(),
-  };
-  const btn=document.getElementById('mc-submit-btn');
-  btn.disabled=true;btn.innerHTML='<span class="loading-spinner"></span>Kaydediliyor...';
-  try {
-    await sheetPost(rec);
-    closeOverlay('m-checkout');
-    await loadRecords();
-    showToast('✅ Araç çıkışı kaydedildi!');
-  } catch(e){
-    showToast('Bağlantı hatası! Tekrar dene.',true);
-  } finally {
-    btn.disabled=false;btn.innerHTML='✅ ÇIKIŞ KAYDET';
-  }
+  window.selectedDriver = '';
 }
 
-// ── RETURN ──
-function openReturnModal(){
-  const rec=getOpenRec(activeVehicle.id);
-  activeRecord=rec;
-  const now=new Date();
-  document.getElementById('mr-sub').textContent=activeVehicle.plate+' — '+activeVehicle.model.replace('\n',' ');
-  document.getElementById('mr-stamp').innerHTML='⏱ Dönüş damgası: <strong>'+now.toLocaleDateString('tr-TR')+' '+now.toLocaleTimeString('tr-TR')+'</strong>';
-  document.getElementById('mr-driver').value=rec?rec.driver:'';
-  document.getElementById('mr-ckm').value=rec?rec.checkoutKm:'';
-  document.getElementById('mr-time').value=now.toLocaleTimeString('tr-TR');
-  document.getElementById('mr-km').value='';
-  document.getElementById('mr-device').value=getDeviceInfo();
+function selDrv(el,n){document.querySelectorAll('.driver-chip').forEach(c=>c.classList.remove('selected'));el.classList.add('selected');window.selectedDriver=n;}
+
+async function confirmCheckout(){
+  if(!window.selectedDriver){alert('Sürücü seçin!'); return;}
+  const km=document.getElementById('mc-km').value; if(!km){alert('KM girin!'); return;}
+  const payload = {
+    action:'checkout', id:Date.now(), plate:activeVehicle.Plaka, model:activeVehicle.Model,
+    driver:window.selectedDriver, checkoutKm:km, checkoutTime:new Date().toLocaleTimeString('tr-TR'),
+    date:new Date().toLocaleDateString('tr-TR'), purpose:document.getElementById('mc-purpose').value,
+    route:document.getElementById('mc-route').value, checkoutDevice:navigator.userAgent.slice(0,18)
+  };
+  await send(payload); closeOverlay('m-checkout'); loadRecords();
+}
+
+function openReturn(){
+  document.getElementById('mr-sub').textContent = activeVehicle.Plaka;
+  document.getElementById('mr-drv').value = activeRecord.Sürücü;
+  document.getElementById('mr-stamp').innerHTML = '⏱ Dönüş Saati: ' + new Date().toLocaleTimeString('tr-TR');
   document.getElementById('m-return').classList.add('open');
 }
+
 async function confirmReturn(){
-  const km=document.getElementById('mr-km').value;
-  if(!km){showToast('Dönüş KM girilmeli!',true);return;}
-  if(!activeRecord){showToast('Kayıt bulunamadı!',true);return;}
-  const now=new Date();
-  const payload={
-    action:'return',
-    id: activeRecord.id,
-    returnKm:parseInt(km),
-    returnTime:now.toLocaleTimeString('tr-TR'),
-    returnDevice:getDeviceInfo(),
-  };
-  const btn=document.getElementById('mr-submit-btn');
-  btn.disabled=true;btn.innerHTML='<span class="loading-spinner"></span>Kaydediliyor...';
-  try {
-    await sheetPost(payload);
-    closeOverlay('m-return');
-    await loadRecords();
-    showToast('🏁 Dönüş kaydedildi!');
-  } catch(e){
-    showToast('Bağlantı hatası! Tekrar dene.',true);
-  } finally {
-    btn.disabled=false;btn.innerHTML='🏁 DÖNÜŞ KAYDET';
-  }
+  const km=document.getElementById('mr-km').value; if(!km){alert('KM girin!'); return;}
+  await send({action:'return', id:activeRecord.ID, returnKm:km, returnTime:new Date().toLocaleTimeString('tr-TR'), returnDevice:navigator.userAgent.slice(0,18)});
+  closeOverlay('m-return'); loadRecords();
 }
 
-// ── TABLE ──
+async function send(p){
+  setSync('syncing','Gönderiliyor...');
+  await fetch(SCRIPT_URL,{method:'POST',body:JSON.stringify(p)});
+  setSync('ok','Tamamlandı');
+}
+
 function renderTable(){
-  const q=(document.getElementById('search-box').value||'').toLowerCase();
-  let f=records.filter(r=>
-    (r.plate||'').toLowerCase().includes(q)||
-    (r.driver||'').toLowerCase().includes(q)||
-    (r.purpose||'').toLowerCase().includes(q)
-  );
+  const body=document.getElementById('rec-body'); const q=(document.getElementById('search-box').value||'').toLowerCase();
+  const f=RECORDS.filter(r=>(r.Plaka+r.Sürücü).toLowerCase().includes(q));
   document.getElementById('rec-count').textContent=f.length;
-  const empty=document.getElementById('rec-empty');
-  const body=document.getElementById('rec-body');
-  if(!f.length){body.innerHTML='';empty.style.display='';return;}
-  empty.style.display='none';
-  body.innerHTML=f.map((r,i)=>{
-    const diff=r.returnKm&&r.checkoutKm?r.returnKm-r.checkoutKm:null;
-    return `<tr>
-      <td style="color:var(--muted2);">${i+1}</td>
-      <td>${r.date||'—'}</td>
-      <td class="cell-plate">${r.plate||'—'}<br><span style="font-size:.65rem;color:var(--muted2);font-weight:400;">${r.model||''}</span></td>
-      <td class="cell-driver">${r.driver||'—'}</td>
-      <td>${r.checkoutKm?Number(r.checkoutKm).toLocaleString('tr-TR')+' km':'—'}</td>
-      <td>${r.checkoutTime||'—'}</td>
-      <td style="max-width:120px;white-space:normal;">${r.purpose||'—'}</td>
-      <td style="max-width:130px;white-space:normal;color:var(--muted);">${r.route||'—'}</td>
-      <td>${r.returnKm?Number(r.returnKm).toLocaleString('tr-TR')+' km':'—'}</td>
-      <td>${r.returnTime||'—'}</td>
-      <td>${diff!==null?'<span style="color:var(--accent);">+'+diff.toLocaleString('tr-TR')+' km</span>':'—'}</td>
-      <td>${r.returnTime?'<span class="badge-closed">KAPALI</span>':'<span class="badge-open">AÇIK</span>'}</td>
-    </tr>`;
-  }).join('');
+  body.innerHTML=f.map((r,i)=>`<tr><td>${i+1}</td><td>${r.Tarih}</td><td class="cell-plate">${r.Plaka}</td><td class="cell-driver">${r.Sürücü}</td><td>${r['Çıkış KM']}</td><td>${r['Çıkış Saati']}</td><td>${r['Kullanım Amacı']||''}</td><td>${r['Dönüş Saati']||'—'}</td><td>${r['KM Farkı']?'+'+r['KM Farkı']:''}</td><td>${r.Durum==='AÇIK'?'<span class="badge-open">AÇIK</span>':'<span class="badge-closed">KAPALI</span>'}</td></tr>`).join('');
 }
 
-// ── ADMIN PANEL ──
-function renderAdmin(){
-  renderDeviceList();
-  renderAdminTable();
-}
-function renderDeviceList(){
-  const dl=document.getElementById('device-list');
-  const allDevIds=[...new Set(records.flatMap(r=>[r.checkoutDevice,r.returnDevice].filter(Boolean)).map(d=>d.split('#')[1]?.trim()).filter(Boolean))];
-  const myId=getDeviceId().slice(4,10);
-  const knownIds=Object.keys(deviceMap).map(k=>k.slice(4,10));
-  const allIds=[...new Set([...allDevIds,...knownIds])];
-  if(!allIds.length){dl.innerHTML='<div style="color:var(--muted);font-size:.8rem;">Henüz cihaz kaydı yok. Sürücüler QR okutunca burada görünecek.</div>';return;}
-  dl.innerHTML=allIds.map(shortId=>{
-    const fullKey=Object.keys(deviceMap).find(k=>k.includes(shortId))||'dev_'+shortId;
-    const mapped=deviceMap[fullKey]||'';
-    const devLabel=records.find(r=>(r.checkoutDevice||'').includes(shortId))?.checkoutDevice||('Cihaz #'+shortId);
-    return `<div class="device-row">
-      <span class="device-id">${devLabel}</span>
-      ${mapped?`<span class="matched-tag">✓ ${mapped}</span>`:''}
-      <select class="device-select" id="dsel-${shortId}">
-        <option value="">— Sürücü Seç —</option>
-        ${DRIVERS.map(d=>`<option${mapped===d?' selected':''}>${d}</option>`).join('')}
-      </select>
-      <button class="btn-assign" onclick="assignDevice('${shortId}','${fullKey}')">ATAYIN</button>
-    </div>`;
-  }).join('');
-}
-function assignDevice(shortId,fullKey){
-  const sel=document.getElementById('dsel-'+shortId);
-  if(!sel.value){showToast('Sürücü seçin',true);return;}
-  deviceMap[fullKey]=sel.value;saveDeviceMap();renderDeviceList();
-  showToast('Cihaz eşleştirildi: '+sel.value);
-}
-function renderAdminTable(){
-  const body=document.getElementById('admin-rec-body');
-  if(!records.length){body.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:2rem;">Kayıt yok</td></tr>';return;}
-  body.innerHTML=records.map((r,i)=>{
-    const diff=r.returnKm&&r.checkoutKm?r.returnKm-r.checkoutKm:null;
-    return `<tr>
-      <td style="color:var(--muted2);">${i+1}</td>
-      <td>${r.date||'—'}</td>
-      <td class="cell-plate">${r.plate||'—'}</td>
-      <td class="cell-driver">${r.driver||'—'}</td>
-      <td>${r.checkoutKm?Number(r.checkoutKm).toLocaleString('tr-TR')+' km':'—'}</td>
-      <td>${r.returnKm?Number(r.returnKm).toLocaleString('tr-TR')+' km':'—'}</td>
-      <td>${diff!==null?'<span style="color:var(--accent);">+'+diff.toLocaleString('tr-TR')+'</span>':'—'}</td>
-      <td style="max-width:120px;white-space:normal;">${r.purpose||'—'}</td>
-      <td>${r.returnTime?'<span class="badge-closed">KAPALI</span>':'<span class="badge-open">AÇIK</span>'}</td>
-      <td><button class="btn-edit" onclick="openEdit('${r.id}')">✏ Düzenle</button></td>
-    </tr>`;
-  }).join('');
-}
-
-// ── EDIT ──
-function openEdit(id){
-  const r=records.find(x=>String(x.id)===String(id));if(!r)return;
-  editingId=id;
-  document.getElementById('me-sub').textContent=(r.plate||'')+' — '+(r.date||'');
-  document.getElementById('me-driver').value=r.driver||'';
-  document.getElementById('me-date').value=r.date||'';
-  document.getElementById('me-ckm').value=r.checkoutKm||'';
-  document.getElementById('me-ctime').value=r.checkoutTime||'';
-  document.getElementById('me-rkm').value=r.returnKm||'';
-  document.getElementById('me-rtime').value=r.returnTime||'';
-  document.getElementById('me-purpose').value=r.purpose||'';
-  document.getElementById('me-route').value=r.route||'';
-  document.getElementById('m-edit').classList.add('open');
-}
-async function saveEdit(){
-  const payload={
-    action:'update',
-    id:editingId,
-    driver:document.getElementById('me-driver').value,
-    date:document.getElementById('me-date').value,
-    checkoutKm:parseInt(document.getElementById('me-ckm').value)||null,
-    checkoutTime:document.getElementById('me-ctime').value,
-    returnKm:parseInt(document.getElementById('me-rkm').value)||null,
-    returnTime:document.getElementById('me-rtime').value,
-    purpose:document.getElementById('me-purpose').value,
-    route:document.getElementById('me-route').value,
-  };
-  const btn=document.getElementById('me-submit-btn');
-  btn.disabled=true;btn.innerHTML='<span class="loading-spinner"></span>Kaydediliyor...';
-  try {
-    await sheetPost(payload);
-    closeOverlay('m-edit');
-    await loadRecords();
-    showToast('Kayıt güncellendi ✓');
-  } catch(e){
-    showToast('Bağlantı hatası!',true);
-  } finally {
-    btn.disabled=false;btn.innerHTML='💾 KAYDET';
-  }
-}
-
-// ── CSV ──
-function exportCSV(){
-  const rows=[['ID','Tarih','Plaka','Model','Sürücü','Çıkış KM','Çıkış Saati','Kullanım Amacı','Güzergah','Dönüş KM','Dönüş Saati','KM Farkı']];
-  records.forEach(r=>{
-    const diff=r.returnKm&&r.checkoutKm?r.returnKm-r.checkoutKm:'';
-    rows.push([r.id,r.date,r.plate,r.model,r.driver,r.checkoutKm||'',r.checkoutTime||'',r.purpose||'',r.route||'',r.returnKm||'',r.returnTime||'',diff]);
-  });
-  const csv=rows.map(r=>r.map(c=>'"'+String(c||'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
-  const blob=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-  a.download='arac_kayitlari_'+new Date().toLocaleDateString('tr-TR').replace(/\./g,'-')+'.csv';
-  a.click();
-}
-
-// ── OVERLAY ──
+function switchTab(t,b){ document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active')); b.classList.add('active'); document.querySelectorAll('.page').forEach(p=>p.classList.remove('active')); document.getElementById('page-'+t).classList.add('active'); if(t==='admin') renderAdmin(); }
 function closeOverlay(id){document.getElementById(id).classList.remove('open');}
-document.querySelectorAll('.overlay').forEach(o=>{o.addEventListener('click',e=>{if(e.target===o)closeOverlay(o.id);});});
+async function checkAdminLogin(){ const pw=document.getElementById('admin-pw').value; const h=await sha256(pw); if(h===HASH_ADMIN){adminLoggedIn=true; closeOverlay('m-admin-login'); document.getElementById('tab-admin-btn').style.display=''; switchTab('admin',document.getElementById('tab-admin-btn'));} else {document.getElementById('login-err').textContent='Hatalı!';}}
+function toggleAdmin(){ if(adminLoggedIn) switchTab('admin',document.getElementById('tab-admin-btn')); else document.getElementById('m-admin-login').classList.add('open'); }
+function renderAdmin(){ const b=document.getElementById('admin-rec-body'); b.innerHTML=RECORDS.slice(0,50).map((r,i)=>`<tr><td>${i+1}</td><td>${r.Tarih}</td><td>${r.Plaka}</td><td>${r.Sürücü}</td><td>${r.Durum}</td><td><button class="btn-edit" onclick="alert('Sheet üzerinden düzenleyin')">✏</button></td></tr>`).join(''); }
+function exportCSV(){ alert('Sheet üzerinden indirin'); }
 
-// ── TOAST ──
-function showToast(msg,err=false){
-  const t=document.getElementById('toast');
-  t.textContent=msg;t.className='toast show'+(err?' err':'');
-  setTimeout(()=>t.className='toast',3200);
-}
-
-// ── QR SCAN ON LOAD ──
-function handleQR(){
-  const p=new URLSearchParams(location.search);
-  const vid=p.get('v');
-  if(vid){history.replaceState({},'',location.pathname);setTimeout(()=>openAction(vid),800);}
-}
-
-// ── INIT ──
-loadRecords().then(()=>{handleQR();});
-// Otomatik yenileme her 60 saniyede
-setInterval(()=>{if(!document.querySelector('.overlay.open'))loadRecords();},60000);
+setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleTimeString('tr-TR');},1000);
+loadRecords();
 </script>
 </body>
 </html>
