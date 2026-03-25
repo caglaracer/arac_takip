@@ -131,6 +131,122 @@ table.rtbl tr:hover td{background:rgba(255,255,255,.015);}
   .tabs{padding:0 .5rem;}
   .tab-btn{padding:.8rem .7rem;font-size:.73rem;}
 }
+
+/* PASSCODE OVERLAY */
+#entry-lock {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 2rem;
+}
+.lock-card {
+  background: var(--panel);
+  border: 1px solid var(--border2);
+  border-top: 4px solid var(--accent);
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  width: 100%;
+  max-width: 360px;
+  text-align: center;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+.lock-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2.2rem;
+  letter-spacing: 4px;
+  color: var(--accent);
+  margin-bottom: 0.5rem;
+}
+.lock-sub {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-bottom: 2rem;
+  letter-spacing: 1px;
+}
+.pin-input-group {
+  display: flex;
+  gap: 0.8rem;
+  justify-content: center;
+  margin-bottom: 2rem;
+}
+.pin-dot {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--border2);
+  transition: all 0.2s;
+}
+.pin-dot.filled {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow: 0 0 10px var(--accent);
+}
+.numpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  width: 100%;
+}
+.num-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 1.4rem;
+  padding: 1.2rem 0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.num-btn:hover {
+  background: var(--border);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.num-btn:active {
+  transform: scale(0.95);
+}
+.num-btn.clear {
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+.qr-search-area {
+  display: flex;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.pagination {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 2rem;
+  justify-content: center;
+}
+.pg-btn {
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  padding: 0.5rem 0.8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: 'IBM Plex Mono', monospace;
+}
+.pg-btn.active {
+  background: var(--accent);
+  color: #000;
+  border-color: var(--accent);
+}
+.pg-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
 </style>
 </head>
 <body>
@@ -138,7 +254,6 @@ table.rtbl tr:hover td{background:rgba(255,255,255,.015);}
 <header>
   <div>
     <div class="logo">ARAÇ TAKİP</div>
-    <div class="logo-sub">Filo Yönetim Sistemi</div>
   </div>
   <div class="spacer"></div>
   <div class="sync-indicator">
@@ -157,9 +272,41 @@ table.rtbl tr:hover td{background:rgba(255,255,255,.015);}
 
 <!-- QR PAGE -->
 <div class="page active" id="page-qr">
-  <div class="section-title">ARAÇLAR</div>
+  <div class="qr-search-area">
+    <div class="section-title" style="margin:0;">ARAÇLAR</div>
+    <input class="search-box" id="qr-search" placeholder="Plaka ara..." oninput="qrPage=1;renderQR()" style="margin-left:0; width: 220px;">
+  </div>
   <div class="qr-grid" id="qr-grid"></div>
+  <div class="pagination" id="qr-pagination"></div>
 </div>
+
+<!-- ENTRY LOCK OVERLAY -->
+<div id="entry-lock">
+  <div class="lock-card">
+    <div class="lock-title">SİSTEM KİLİTLİ</div>
+    <div class="lock-sub">Devam etmek için 4 haneli kodu girin</div>
+    <div class="pin-input-group" id="pin-dots">
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+      <div class="pin-dot"></div>
+    </div>
+    <div class="numpad">
+      <button class="num-btn" onclick="pressKey('1')">1</button>
+      <button class="num-btn" onclick="pressKey('2')">2</button>
+      <button class="num-btn" onclick="pressKey('3')">3</button>
+      <button class="num-btn" onclick="pressKey('4')">4</button>
+      <button class="num-btn" onclick="pressKey('5')">5</button>
+      <button class="num-btn" onclick="pressKey('6')">6</button>
+      <button class="num-btn" onclick="pressKey('7')">7</button>
+      <button class="num-btn" onclick="pressKey('8')">8</button>
+      <button class="num-btn" onclick="pressKey('9')">9</button>
+      <button class="num-btn clear" onclick="pressKey('C')">SİL</button>
+      <button class="num-btn" onclick="pressKey('0')">0</button>
+      <button class="num-btn clear" onclick="pressKey('OK')">OK</button>
+    </div>
+    <div id="lock-err" style="color:var(--danger); font-size:0.8rem; margin-top:1rem; height:1rem;"></div>
+  </div>
 
 <!-- RECORDS PAGE -->
 <div class="page" id="page-records">
@@ -355,11 +502,39 @@ table.rtbl tr:hover td{background:rgba(255,255,255,.015);}
 <script>
 // ── CONFIG ──
 const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxc_uTqJ3engLKLYeQ0rnfZW4ojLpcfjRetPT0Y3KOaUGPD17TKlrexFXseoo6bZUG8/exec';
-const ADMIN_PASSWORD = 'Feal7503'; // Buradan değiştirebilirsin
+const HASH_ADMIN = '0a0e64b913d0db397e5fc7046fd7303f2e15112cb598df13b2e53ef21f663004'; // SHA-256 for Feal7503
+const HASH_ENTRY = 'fca13bfeed47a54af1ebf675fdc3512139ce55cbede38102377b8cfd6f8303f2'; // SHA-256 for 4426
 const DRIVERS = ['Ersin Güler','Çağrı Deniz','Batuhan Albayrak','Sercan Albayrak','Çağlar Acer','Şafak Ünal','Serkan Ünal','Orkun Yürekli'];
 const VEHICLES = [
-  {id:'v1', plate:'06 BFK 860', model:'PASSAT 1.4 TSI\n115 PS COMFORTLİNE TİPTR'},
-  {id:'v2', plate:'06 BOS 072', model:'PASSAT 1.6 TDI SCR\n120 PS BUSİNESS DSG'},
+  {id:'v1', plate:'06 FU 5622', model:'JETTA'},
+  {id:'v2', plate:'06 AER 534', model:'DUSTER'},
+  {id:'v3', plate:'06 FU 5630', model:'JETTA'},
+  {id:'v4', plate:'06 FU 5629', model:'JETTA'},
+  {id:'v5', plate:'06 FP 4055', model:'SYMBOL'},
+  {id:'v6', plate:'72 AV 949', model:'FORD CARGO'},
+  {id:'v7', plate:'06 ACL 286', model:'DUSTER'},
+  {id:'v8', plate:'08 K 5437', model:'ISUZU NPR'},
+  {id:'v9', plate:'06 AER 102', model:'DUSTER'},
+  {id:'v10', plate:'06 AER 103', model:'DUSTER'},
+  {id:'v11', plate:'35 FL 902', model:'FORD CARGO'},
+  {id:'v12', plate:'10 VZ 403', model:'FORD TRANSİT 330 M Ç.K. KAMYONET'},
+  {id:'v13', plate:'06 AFM 446', model:'DUSTER'},
+  {id:'v14', plate:'06 AFM 449', model:'DUSTER'},
+  {id:'v15', plate:'06 AFM 450', model:'DUSTER'},
+  {id:'v16', plate:'06 AFM 452', model:'DUSTER'},
+  {id:'v17', plate:'06 AFM 455', model:'DUSTER'},
+  {id:'v18', plate:'06 AFM 458', model:'DUSTER'},
+  {id:'v19', plate:'06 AFM 459', model:'DUSTER'},
+  {id:'v20', plate:'06 AFM 461', model:'DUSTER'},
+  {id:'v21', plate:'41 U 2493', model:'FORD TRANSİT Ç.K. KAMYONET 6'},
+  {id:'v22', plate:'06 BFK 860', model:'PASSAT 1.4 TSI PS COMFORTLİNE TİPTR'},
+  {id:'v23', plate:'06 BOS 072', model:'PASSAT 1.6 TDI SCR 120 PS BUSİNESS DSG'},
+  {id:'v24', plate:'06 BRL 663', model:'VW TRANSPORTER 2.0 TDI 150 HP Cityvan LWB Man. 5+1 Uzun Şase / NORTHECH A.Ş.'},
+  {id:'v25', plate:'06 PR 875', model:'MERCEDEZ-BENZ UNİMOG / ÖZEL AMAÇLI VİNÇLİ AÇIK SAC KASALI RAY BAKIM ARACI'},
+  {id:'v26', plate:'26 AFU 255', model:'SKODA SCALA HATCBACK OTOMATİK VİTES IOTECH A.Ş.'},
+  {id:'v27', plate:'26 ADK 358', model:'VW CADDY KOMBİ 2.0 TDI SCR BMT 102 HP EXCLISİVE DSG NORTHTECH A.Ş.'},
+  {id:'v28', plate:'10 ABY 366', model:'CF MOTO / CF-150-3 MOTOSİKLET NORTHTECH A..Ş.'},
+  {id:'v29', plate:'06 EUG 081', model:'RENAULT Trafic Combi 5+1 Grand Confort 6 m3 20 Blue dCi EDC 170 bg D-Full OTM VTS'},
 ];
 
 let records = [];
@@ -369,6 +544,60 @@ let activeVehicle = null;
 let activeRecord = null;
 let editingId = null;
 let selectedDriver = '';
+let currentPin = '';
+let qrPage = 1;
+const qrPageSize = 10;
+
+// ── HASHING ──
+async function sha256(str) {
+  const buf = new TextEncoder().encode(str);
+  const hash = await crypto.subtle.digest('SHA-256', buf);
+  return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ── ENTRY LOCK ──
+async function pressKey(k) {
+  const dots = document.querySelectorAll('.pin-dot');
+  if(k === 'C') {
+    currentPin = '';
+  } else if(k === 'OK') {
+    if(currentPin.length < 4) return;
+    const h = await sha256(currentPin);
+    if(h === HASH_ENTRY) {
+      document.getElementById('entry-lock').style.display = 'none';
+      sessionStorage.setItem('unlocked', 'true');
+    } else {
+      document.getElementById('lock-err').textContent = 'Hatalı kod!';
+      currentPin = '';
+      setTimeout(() => document.getElementById('lock-err').textContent = '', 2000);
+    }
+  } else if(currentPin.length < 4) {
+    currentPin += k;
+  }
+  
+  dots.forEach((d, i) => {
+    if(i < currentPin.length) d.classList.add('filled');
+    else d.classList.remove('filled');
+  });
+
+  if(currentPin.length === 4 && k !== 'OK' && k !== 'C') {
+    // Auto check or wait for OK? User asked for 4426, let's wait for OK or auto-check
+    // Adding auto check for better UX
+    setTimeout(async () => {
+      if(currentPin.length === 4) {
+        const h = await sha256(currentPin);
+        if(h === HASH_ENTRY) {
+          document.getElementById('entry-lock').style.display = 'none';
+          sessionStorage.setItem('unlocked', 'true');
+        }
+      }
+    }, 300);
+  }
+}
+
+if(sessionStorage.getItem('unlocked') === 'true') {
+  document.getElementById('entry-lock').style.display = 'none';
+}
 
 // ── CLOCK ──
 setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleTimeString('tr-TR');},1000);
@@ -479,9 +708,10 @@ function toggleAdmin(){
     document.getElementById('m-admin-login').classList.add('open');
   }
 }
-function checkAdminLogin(){
+async function checkAdminLogin(){
   const pw=document.getElementById('admin-pw').value;
-  if(pw===ADMIN_PASSWORD){
+  const h = await sha256(pw);
+  if(h === HASH_ADMIN){
     adminLoggedIn=true;
     closeOverlay('m-admin-login');
     document.getElementById('admin-pw').value='';
@@ -498,17 +728,33 @@ function checkAdminLogin(){
 let qrRendered = false;
 function renderQR(){
   const grid=document.getElementById('qr-grid');
+  const search = (document.getElementById('qr-search').value||'').toLowerCase();
+  
+  let filtered = VEHICLES.filter(v => 
+    v.plate.toLowerCase().includes(search) || 
+    v.model.toLowerCase().includes(search)
+  );
+
+  const total = filtered.length;
+  const start = (qrPage - 1) * qrPageSize;
+  const end = start + qrPageSize;
+  const paginated = filtered.slice(start, end);
+
   grid.innerHTML='';
   qrRendered=false;
-  VEHICLES.forEach(v=>{
-    const out=isOut(v.id);
+  
+  paginated.forEach(v=>{
+    const rec = getOpenRec(v.id);
+    const out=!!rec;
     const card=document.createElement('div');
     card.className='qr-card'+(out?' out':'');
-    const ml=v.model.split('\n').join('<br>');
+    const ml=v.model.replace(/\n/g, '<br>');
+    const statusText = out ? `ZİMMETLİ: ${rec.driver}` : 'MÜSAİT';
+    
     card.innerHTML=`
       <div class="plate-tag">${v.plate}</div>
       <div class="model-label">${ml}</div>
-      <div class="status-row"><span class="dot ${out?'dot-out':'dot-ok'}"></span><span style="font-size:.78rem;color:var(--muted);">${out?'ARAÇTA':'MÜSAİT'}</span></div>
+      <div class="status-row"><span class="dot ${out?'dot-out':'dot-ok'}"></span><span style="font-size:.78rem;color:var(--muted);">${statusText}</span></div>
       <div class="qr-wrap" id="qr-${v.id}"></div>
       <button class="qr-action-btn ${out?'return-btn':''}" onclick="openAction('${v.id}')">${out?'🏁 DÖNÜŞ KAYDI':'🚗 ARAÇ AL'}</button>
     `;
@@ -516,7 +762,22 @@ function renderQR(){
     const url=location.href.split('?')[0]+'?v='+v.id;
     new QRCode(document.getElementById('qr-'+v.id),{text:url,width:140,height:140,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M});
   });
+  
+  renderPagination(total);
   qrRendered=true;
+}
+
+function renderPagination(total) {
+  const container = document.getElementById('qr-pagination');
+  const maxPage = Math.ceil(total / qrPageSize);
+  if(maxPage <= 1) { container.innerHTML = ''; return; }
+  
+  let html = `<button class="pg-btn" ${qrPage===1?'disabled':''} onclick="qrPage--;renderQR()">«</button>`;
+  for(let i=1; i<=maxPage; i++) {
+    html += `<button class="pg-btn ${qrPage===i?'active':''}" onclick="qrPage=${i};renderQR()">${i}</button>`;
+  }
+  html += `<button class="pg-btn" ${qrPage===maxPage?'disabled':''} onclick="qrPage++;renderQR()">»</button>`;
+  container.innerHTML = html;
 }
 
 // ── ACTION ROUTER ──
