@@ -916,12 +916,14 @@
     function openReturn() {
       document.getElementById('mr-sub').textContent = activeVehicle.Plaka;
       document.getElementById('mr-drv').value = activeRecord.Sürücü;
+      document.getElementById('mr-km').value = activeRecord['Çıkış KM'];
       document.getElementById('mr-stamp').innerHTML = '⏱ Dönüş Saati: ' + new Date().toLocaleTimeString('tr-TR');
       document.getElementById('m-return').classList.add('open');
     }
 
     async function confirmReturn() {
       const km = document.getElementById('mr-km').value; if (!km) { alert('KM girin!'); return; }
+      if (Number(km) < Number(activeRecord['Çıkış KM'])) { alert('Hata: Dönüş KM, çıkış KM\'den (' + activeRecord['Çıkış KM'] + ') düşük olamaz!'); return; }
       await send({ action: 'return', id: activeRecord.ID, returnKm: km, returnTime: new Date().toLocaleTimeString('tr-TR'), returnDevice: navigator.userAgent.slice(0, 18) });
       closeOverlay('m-return'); loadRecords();
     }
