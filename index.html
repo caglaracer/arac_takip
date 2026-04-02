@@ -936,7 +936,11 @@
       const body = document.getElementById('rec-body'); const q = (document.getElementById('search-box').value || '').toLowerCase();
       const f = RECORDS.filter(r => (r.Plaka + r.Sürücü).toLowerCase().includes(q));
       document.getElementById('rec-count').textContent = f.length;
-      body.innerHTML = f.map((r, i) => `<tr><td>${i + 1}</td><td>${r.Tarih}</td><td class="cell-plate">${r.Plaka}</td><td class="cell-driver">${r.Sürücü}</td><td>${r['Çıkış KM']}</td><td>${r['Çıkış Saati']}</td><td>${r['Kullanım Amacı'] || ''}</td><td>${r['Dönüş Saati'] || '—'}</td><td>${r['KM Farkı'] ? '+' + r['KM Farkı'] : ''}</td><td>${r.Durum === 'AÇIK' ? '<span class="badge-open">AÇIK</span>' : '<span class="badge-closed">KAPALI</span>'}</td></tr>`).join('');
+      body.innerHTML = f.map((r, i) => {
+        const cTime = (r['Çıkış Saati'] || '').split(' ').pop();
+        const rTime = r['Dönüş Saati'] ? r['Dönüş Saati'].split(' ').pop() : '—';
+        return `<tr><td>${i + 1}</td><td>${r.Tarih}</td><td class="cell-plate">${r.Plaka}</td><td class="cell-driver">${r.Sürücü}</td><td>${r['Çıkış KM']}</td><td>${cTime}</td><td>${r['Kullanım Amacı'] || ''}</td><td>${rTime}</td><td>${r['KM Farkı'] ? '+' + r['KM Farkı'] : ''}</td><td>${r.Durum === 'AÇIK' ? '<span class="badge-open">AÇIK</span>' : '<span class="badge-closed">KAPALI</span>'}</td></tr>`;
+      }).join('');
     }
 
     function switchTab(t, b) { document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('page-' + t).classList.add('active'); if (t === 'admin') renderAdmin(); }
