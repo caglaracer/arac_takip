@@ -278,10 +278,12 @@
     }
 
     .qr-wrap {
+      display: none;
       background: #fff;
       padding: 8px;
       border-radius: 4px;
     }
+    .admin-mode .qr-wrap { display: block; }
 
     .qr-action-btn {
       width: 100%;
@@ -970,7 +972,15 @@
     function openAction(plate) {
       activeVehicle = VEHICLES.find(v => v.Plaka === plate);
       const rec = RECORDS.find(r => r.Plaka === plate && r.Durum === 'AÇIK');
-      if (rec) { activeRecord = rec; openReturn(); } else { openCheckout(); }
+      if (rec) { 
+        if (!adminLoggedIn && localStorage.getItem('vts_driver_name') !== rec.Sürücü) {
+          alert('HATA: Zimmet sahibi değilsiniz! Bu aracı sadece [' + rec.Sürücü + '] teslim edebilir.');
+          return;
+        }
+        activeRecord = rec; openReturn(); 
+      } else { 
+        openCheckout(); 
+      }
     }
 
     function openCheckout() {
@@ -1039,7 +1049,7 @@
 
     function switchTab(t, b) { document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('page-' + t).classList.add('active'); if (t === 'admin') renderAdmin(); }
     function closeOverlay(id) { document.getElementById(id).classList.remove('open'); }
-    async function checkAdminLogin() { const pw = document.getElementById('admin-pw').value; const h = await sha256(pw); if (h === HASH_ADMIN) { adminLoggedIn = true; closeOverlay('m-admin-login'); document.getElementById('tab-admin-btn').style.display = ''; switchTab('admin', document.getElementById('tab-admin-btn')); } else { document.getElementById('login-err').textContent = 'Hatalı!'; } }
+    async function checkAdminLogin() { const pw = document.getElementById('admin-pw').value; const h = await sha256(pw); if (h === HASH_ADMIN) { adminLoggedIn = true; document.body.classList.add('admin-mode'); closeOverlay('m-admin-login'); document.getElementById('tab-admin-btn').style.display = ''; switchTab('admin', document.getElementById('tab-admin-btn')); } else { document.getElementById('login-err').textContent = 'Hatalı!'; } }
     function toggleAdmin() { if (adminLoggedIn) switchTab('admin', document.getElementById('tab-admin-btn')); else document.getElementById('m-admin-login').classList.add('open'); }
     function renderAdmin() { const b = document.getElementById('admin-rec-body'); b.innerHTML = RECORDS.slice(0, 50).map((r, i) => `<tr><td>${i + 1}</td><td>${r.Tarih}</td><td>${r.Plaka}</td><td>${r.Sürücü}</td><td>${r.Durum}</td><td><button class="btn-edit" onclick="alert('Sheet üzerinden düzenleyin')">✏</button></td></tr>`).join(''); }
     function exportCSV() { alert('Sheet üzerinden indirin'); }
