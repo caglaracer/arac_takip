@@ -1,0 +1,17 @@
+{
+  "name": "Araç Takip Sistemi",
+  "short_name": "Araç Takip",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0a0c0f",
+  "theme_color": "#f0c040",
+  "description": "Araç Takip Sistemi V2",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3206/3206109.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

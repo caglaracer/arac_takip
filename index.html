@@ -8,6 +8,9 @@
   <link
     href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap"
     rel="stylesheet">
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#f0c040">
+  <link rel="apple-touch-icon" href="https://cdn-icons-png.flaticon.com/512/3206/3206109.png">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <style>
     :root {
@@ -689,6 +692,7 @@
         <div class="ob-dot active" id="dot-0"></div>
         <div class="ob-dot" id="dot-1"></div>
         <div class="ob-dot" id="dot-2"></div>
+        <div class="ob-dot" id="dot-3"></div>
       </div>
       <button class="ob-btn" id="ob-btn" onclick="nextOb()">DEVAM ET</button>
     </div>
@@ -868,18 +872,19 @@
     const obSlides = [
       { i: '🚗', t: 'HOŞ GELDİNİZ', d: 'Araç takip işlemlerinizi artık saniyeler içinde cep telefonunuzdan yapabilirsiniz.' },
       { i: '📱', t: 'HIZLI İŞLEMLER', d: 'Kameranızla araçtaki QR kodu okuttuğunuzda alış veya dönüş ekranı doğrudan açılır.' },
-      { i: '🔒', t: 'TEK SEFERLİK', d: 'İlk kullanımda isminizi seçtiğinizde cihazınız sizi tanır ve sonraki işlemlerde tekrar sormaz.' }
+      { i: '🔒', t: 'TEK SEFERLİK', d: 'İlk kullanımda isminizi seçtiğinizde cihazınız sizi tanır ve sonraki işlemlerde tekrar sormaz.' },
+      { i: '📥', t: 'UYGULAMA YAPIN', d: 'Tarayıcınızın menüsünden "Ana Ekrana Ekle" diyerek telefonunuza normal bir uygulama gibi kurabilirsiniz.' }
     ];
     let obStep = 0;
     
     function nextOb() {
-      if(obStep < 2) {
+      if(obStep < 3) {
         obStep++;
         document.getElementById('ob-icon').textContent = obSlides[obStep].i;
         document.getElementById('ob-title').textContent = obSlides[obStep].t;
         document.getElementById('ob-desc').textContent = obSlides[obStep].d;
         document.querySelectorAll('.ob-dot').forEach((d,idx) => d.className = 'ob-dot' + (idx===obStep? ' active':''));
-        if(obStep === 2) document.getElementById('ob-btn').textContent = 'BAŞLA';
+        if(obStep === 3) document.getElementById('ob-btn').textContent = 'BAŞLA';
       } else {
         localStorage.setItem('vts_onboarding_done', 'true');
         document.getElementById('onboard').style.opacity = '0';
@@ -903,11 +908,11 @@
     }
 
     async function pressKey(k) {
-      if (k === 'C') { currentPin = ''; } else if (k === 'OK') { if (currentPin.length === 4) { const h = await sha256(currentPin); if (h === HASH_ENTRY) { document.getElementById('entry-lock').style.display = 'none'; sessionStorage.setItem('unlocked', 'true'); loadRecords(); } else { document.getElementById('lock-err').textContent = 'Hatalı!'; currentPin = ''; } } } else if (currentPin.length < 4) { currentPin += k; }
+      if (k === 'C') { currentPin = ''; } else if (k === 'OK') { if (currentPin.length === 4) { const h = await sha256(currentPin); if (h === HASH_ENTRY) { document.getElementById('entry-lock').style.display = 'none'; localStorage.setItem('vts_unlocked', 'true'); loadRecords(); } else { document.getElementById('lock-err').textContent = 'Hatalı!'; currentPin = ''; } } } else if (currentPin.length < 4) { currentPin += k; }
       const dots = document.querySelectorAll('.pin-dot'); dots.forEach((d, i) => d.className = 'pin-dot' + (i < currentPin.length ? ' filled' : ''));
       if (currentPin.length === 4 && k !== 'OK') setTimeout(() => pressKey('OK'), 200);
     }
-    if (sessionStorage.getItem('unlocked') === 'true') document.getElementById('entry-lock').style.display = 'none';
+    if (localStorage.getItem('vts_unlocked') === 'true') document.getElementById('entry-lock').style.display = 'none';
 
     function switchOffice(off, btn) {
       currentOffice = off;
