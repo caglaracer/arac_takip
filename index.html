@@ -832,6 +832,15 @@
 
     async function sha256(s) { const b = new TextEncoder().encode(s); const h = await crypto.subtle.digest('SHA-256', b); return Array.from(new Uint8Array(h)).map(x => x.toString(16).padStart(2, '0')).join(''); }
 
+    function getDeviceId() {
+      let devId = localStorage.getItem('vts_dev_id');
+      if (!devId) {
+        devId = Math.random().toString(36).substring(2, 9).toUpperCase() + '-' + Date.now().toString(36).toUpperCase();
+        localStorage.setItem('vts_dev_id', devId);
+      }
+      return devId;
+    }
+
     async function pressKey(k) {
       if (k === 'C') { currentPin = ''; } else if (k === 'OK') { if (currentPin.length === 4) { const h = await sha256(currentPin); if (h === HASH_ENTRY) { document.getElementById('entry-lock').style.display = 'none'; sessionStorage.setItem('unlocked', 'true'); loadRecords(); } else { document.getElementById('lock-err').textContent = 'Hatalı!'; currentPin = ''; } } } else if (currentPin.length < 4) { currentPin += k; }
       const dots = document.querySelectorAll('.pin-dot'); dots.forEach((d, i) => d.className = 'pin-dot' + (i < currentPin.length ? ' filled' : ''));
@@ -858,6 +867,15 @@
           DRIVERS = d.drivers || [];
           setSync('ok', 'Güncel');
           renderQR(); renderTable(); if (adminLoggedIn) renderAdmin();
+          
+          const urlParams = new URLSearchParams(window.location.search);
+          const pPlate = urlParams.get('p');
+          if (pPlate && !window.qrTriggered) {
+            window.qrTriggered = true;
+            const vehicle = VEHICLES.find(v => v.Plaka === pPlate);
+            if (vehicle) openAction(vehicle.Plaka);
+            window.history.replaceState({}, document.title, location.pathname);
+          }
         }
       } catch (e) { setSync('err', 'Bağlantı Yok'); }
     }
@@ -893,10 +911,16 @@
       document.getElementById('mc-sub').textContent = activeVehicle.Plaka + ' / ' + activeVehicle.Model;
       document.getElementById('mc-stamp').innerHTML = '⏱ Çıkış Saati: ' + new Date().toLocaleTimeString('tr-TR');
       const dGrid = document.getElementById('mc-drivers');
-      const ofisSuruculeri = DRIVERS.filter(d => d.Lokasyon === activeVehicle.Lokasyon || currentOffice === 'Tümü');
-      dGrid.innerHTML = ofisSuruculeri.map(d => `<div class="driver-chip" onclick="selDrv(this,'${d['Ad Soyad']}')">${d['Ad Soyad']}</div>`).join('');
+      let savedStr = localStorage.getItem('vts_driver_name');
+      if (savedStr) {
+        dGrid.innerHTML = `<div class="driver-chip selected" style="cursor:default;border-color:var(--accent2);color:var(--accent2);">${savedStr} (Tanımlı Sürücü)</div>`;
+        window.selectedDriver = savedStr;
+      } else {
+        const ofisSuruculeri = DRIVERS.filter(d => d.Lokasyon === activeVehicle.Lokasyon || currentOffice === 'Tümü');
+        dGrid.innerHTML = ofisSuruculeri.map(d => `<div class="driver-chip" onclick="selDrv(this,'${d['Ad Soyad']}')">${d['Ad Soyad']}</div>`).join('');
+        window.selectedDriver = '';
+      }
       document.getElementById('m-checkout').classList.add('open');
-      window.selectedDriver = '';
     }
 
     function selDrv(el, n) { document.querySelectorAll('.driver-chip').forEach(c => c.classList.remove('selected')); el.classList.add('selected'); window.selectedDriver = n; }
@@ -908,8 +932,9 @@
         action: 'checkout', id: Date.now(), plate: activeVehicle.Plaka, model: activeVehicle.Model,
         driver: window.selectedDriver, checkoutKm: km, checkoutTime: new Date().toLocaleTimeString('tr-TR'),
         date: new Date().toLocaleDateString('tr-TR'), purpose: document.getElementById('mc-purpose').value,
-        route: document.getElementById('mc-route').value, checkoutDevice: navigator.userAgent.slice(0, 18)
+        route: document.getElementById('mc-route').value, checkoutDevice: getDeviceId()
       };
+      localStorage.setItem('vts_driver_name', window.selectedDriver);
       await send(payload); closeOverlay('m-checkout'); loadRecords();
     }
 
@@ -924,7 +949,7 @@
     async function confirmReturn() {
       const km = document.getElementById('mr-km').value; if (!km) { alert('KM girin!'); return; }
       if (Number(km) < Number(activeRecord['Çıkış KM'])) { alert('Hata: Dönüş KM, çıkış KM\'den (' + activeRecord['Çıkış KM'] + ') düşük olamaz!'); return; }
-      await send({ action: 'return', id: activeRecord.ID, returnKm: km, returnTime: new Date().toLocaleTimeString('tr-TR'), returnDevice: navigator.userAgent.slice(0, 18) });
+      await send({ action: 'return', id: activeRecord.ID, returnKm: km, returnTime: new Date().toLocaleTimeString('tr-TR'), returnDevice: getDeviceId() });
       closeOverlay('m-return'); loadRecords();
     }
 
