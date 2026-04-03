@@ -743,7 +743,6 @@
 
   <div class="page active" id="page-qr">
 
-
     <div class="qr-search-area" style="display:flex;gap:1rem;margin-bottom:1.2rem;align-items:center;">
       <div class="section-title" style="margin:0;">ARAÇLAR</div>
       <input class="search-box" id="qr-search" placeholder="Plaka ara..." oninput="renderQR()"
@@ -946,7 +945,7 @@
     function renderQR() {
       const grid = document.getElementById('qr-grid');
       const q = (document.getElementById('qr-search').value || '').toLowerCase();
-      let filtered = VEHICLES.filter(v => (currentOffice === 'Tümü' || v.Lokasyon === currentOffice) && (v.Plaka.toLowerCase().includes(q) || v.Model.toLowerCase().includes(q)));
+      let filtered = VEHICLES.filter(v => v.Plaka.toLowerCase().includes(q) || v.Model.toLowerCase().includes(q));
       grid.innerHTML = '';
       filtered.forEach(v => {
         const rec = RECORDS.find(r => r.Plaka === v.Plaka && r.Durum === 'AÇIK');
@@ -954,7 +953,7 @@
         const div = document.createElement('div'); div.className = 'qr-card' + (out ? ' out' : '');
         div.innerHTML = `
       <div class="plate-tag">${v.Plaka}</div>
-      <div class="model-label" style="font-size:.65rem;">${v.Model} <br> <span style="color:var(--accent2);">${v.Lokasyon || ''}</span></div>
+      <div class="model-label" style="font-size:.65rem;">${v.Model}</div>
       <div class="status-row"><span class="dot ${out ? 'dot-out' : 'dot-ok'}"></span><span>${out ? 'ZİMMETLİ: ' + rec.Sürücü : 'MÜSAİT'}</span></div>
       <div class="qr-wrap" id="qr-${v.Plaka.replace(/ /g, '')}"></div>
       <button class="qr-action-btn ${out ? 'return-btn' : ''}" onclick="openAction('${v.Plaka}')">${out ? '🏁 DÖNÜŞ YAP' : '🚗 ARAÇ AL'}</button>
@@ -987,7 +986,7 @@
         dGrid.innerHTML = `<div class="driver-chip selected" style="cursor:default;border-color:var(--accent2);color:var(--accent2);">${savedStr} (Tanımlı Sürücü)</div>`;
         window.selectedDriver = savedStr;
       } else {
-        const ofisSuruculeri = DRIVERS.filter(d => d.Lokasyon === activeVehicle.Lokasyon || currentOffice === 'Tümü');
+        const ofisSuruculeri = DRIVERS;
         dGrid.innerHTML = ofisSuruculeri.map(d => `<div class="driver-chip" onclick="selDrv(this,'${d['Ad Soyad']}')">${d['Ad Soyad']}</div>`).join('');
         window.selectedDriver = '';
       }
