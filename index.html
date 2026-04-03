@@ -1024,7 +1024,11 @@
 
     async function confirmReturn() {
       const km = document.getElementById('mr-km').value; if (!km) { alert('KM girin!'); return; }
-      if (Number(km) < Number(activeRecord['Çıkış KM'])) { alert('Hata: Dönüş KM, çıkış KM\'den (' + activeRecord['Çıkış KM'] + ') düşük olamaz!'); return; }
+      const diff = Number(km) - Number(activeRecord['Çıkış KM']);
+      if (diff < 0) { alert('Hata: Dönüş KM, çıkış KM\'den (' + activeRecord['Çıkış KM'] + ') düşük olamaz!'); return; }
+      if (diff > 100) {
+        if (!confirm('DİKKAT: Toplam ' + diff + ' KM yol yaptığınız görünüyor. Değeri doğru girdiğinize emin misiniz?\n\nÇıkış KM: ' + activeRecord['Çıkış KM'] + '\nDönüş KM: ' + km)) return;
+      }
       await send({ action: 'return', id: activeRecord.ID, returnKm: km, returnTime: new Date().toLocaleTimeString('tr-TR'), returnDevice: getDeviceId(), returnDriverName: localStorage.getItem('vts_driver_name') || '' });
       closeOverlay('m-return'); loadRecords();
     }
