@@ -949,21 +949,8 @@
     async function confirmReturn() {
       const km = document.getElementById('mr-km').value; if (!km) { alert('KM girin!'); return; }
       if (Number(km) < Number(activeRecord['Çıkış KM'])) { alert('Hata: Dönüş KM, çıkış KM\'den (' + activeRecord['Çıkış KM'] + ') düşük olamaz!'); return; }
-      
-      const savedDriver = localStorage.getItem('vts_driver_name');
-      const payload = { 
-        action: 'return', 
-        id: activeRecord.ID, 
-        returnKm: km, 
-        returnTime: new Date().toLocaleTimeString('tr-TR'), 
-        returnDevice: getDeviceId() 
-      };
-      
-      if (savedDriver && savedDriver !== activeRecord.Sürücü) {
-        payload.newDriver = savedDriver;
-      }
-      
-      await send(payload); closeOverlay('m-return'); loadRecords();
+      await send({ action: 'return', id: activeRecord.ID, returnKm: km, returnTime: new Date().toLocaleTimeString('tr-TR'), returnDevice: getDeviceId(), returnDriverName: localStorage.getItem('vts_driver_name') || '' });
+      closeOverlay('m-return'); loadRecords();
     }
 
     async function send(p) {
@@ -976,19 +963,10 @@
       const body = document.getElementById('rec-body'); const q = (document.getElementById('search-box').value || '').toLowerCase();
       const f = RECORDS.filter(r => (r.Plaka + r.Sürücü).toLowerCase().includes(q));
       document.getElementById('rec-count').textContent = f.length;
-      
-      const formatTime = (t) => {
-        if (!t) return '—';
-        if (t.includes('T') && t.includes('Z')) {
-          const dt = new Date(t);
-          if (!isNaN(dt)) return dt.toLocaleTimeString('tr-TR');
-        }
-        return t.split(' ').pop();
-      };
-
       body.innerHTML = f.map((r, i) => {
-        const cTime = formatTime(r['Çıkış Saati']);
-        const rTime = formatTime(r['Dönüş Saati']);
+        const fmt = t => (t && t.toString().match(/\d{2}:\d{2}/)) ? t.toString().match(/\d{2}:\d{2}/)[0] : (t || '—');
+        const cTime = fmt(r['Çıkış Saati']);
+        const rTime = fmt(r['Dönüş Saati']);
         return `<tr><td>${i + 1}</td><td>${r.Tarih}</td><td class="cell-plate">${r.Plaka}</td><td class="cell-driver">${r.Sürücü}</td><td>${r['Çıkış KM']}</td><td>${cTime}</td><td>${r['Kullanım Amacı'] || ''}</td><td>${rTime}</td><td>${r['KM Farkı'] ? '+' + r['KM Farkı'] : ''}</td><td>${r.Durum === 'AÇIK' ? '<span class="badge-open">AÇIK</span>' : '<span class="badge-closed">KAPALI</span>'}</td></tr>`;
       }).join('');
     }
