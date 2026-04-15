@@ -12,6 +12,7 @@
   <meta name="theme-color" content="#f0c040">
   <link rel="apple-touch-icon" href="./logo.png">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
   <style>
     :root {
       --bg: #0a0c0f;
@@ -25,6 +26,20 @@
       --text: #eef0f4;
       --muted: #7a7f8e;
       --muted2: #555a68;
+      
+      /* Dashboard vars */
+      --color-background-primary: var(--bg);
+      --color-background-secondary: var(--card);
+      --color-background-warning: rgba(224, 85, 85, 0.1);
+      --color-border-secondary: var(--border2);
+      --color-border-tertiary: var(--border);
+      --color-border-warning: var(--danger);
+      --color-text-primary: var(--text);
+      --color-text-secondary: var(--muted);
+      --color-text-tertiary: var(--muted2);
+      --color-text-warning: var(--danger);
+      --border-radius-md: 6px;
+      --border-radius-lg: 8px;
     }
 
     * {
@@ -680,6 +695,29 @@
       font-size: .9rem; font-weight: 700; padding: .8rem 2rem; border-radius: 4px; cursor: pointer; width: 100%;
     }
     .ob-btn:hover { filter: brightness(1.1); }
+
+    /* Dashboard CSS */
+    .dash{padding:1rem 0}
+    .dash .section-title{font-size:13px;font-family: 'IBM Plex Sans', sans-serif;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin:1.5rem 0 .75rem; border:none;}
+    .dash .cards{display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:10px;margin-bottom:1rem}
+    .dash .card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);border:1px solid var(--border);padding:.875rem 1rem}
+    .dash .card .label{font-size:12px;color:var(--color-text-secondary);margin-bottom:6px}
+    .dash .card .val{font-size:22px;font-weight:500;color:var(--color-text-primary);font-family: 'IBM Plex Mono', monospace;}
+    .dash .card .sub{font-size:12px;color:var(--color-text-tertiary);margin-top:2px}
+    .dash .charts-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1rem}
+    @media(max-width: 768px) { .dash .charts-row { grid-template-columns: 1fr; } }
+    .dash .chart-box{background:var(--color-background-primary);border:1px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem}
+    .dash .chart-box.full{grid-column:1/-1}
+    .dash .chart-title{font-size:13px;font-weight:500;color:var(--color-text-secondary);margin-bottom:12px;font-family: 'IBM Plex Sans', sans-serif;}
+    .dash .legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px;font-size:12px;color:var(--color-text-secondary)}
+    .dash .legend span{display:flex;align-items:center;gap:5px}
+    .dash .legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+    .dash .alert-box{background:var(--color-background-warning);border:1px solid var(--color-border-warning);border-radius:var(--border-radius-md);padding:.75rem 1rem;margin-bottom:.5rem}
+    .dash .alert-box .at{font-size:13px;font-weight:600;color:var(--color-text-warning)}
+    .dash .alert-box .ad{font-size:12px;color:var(--text);margin-top:4px}
+    .dash .filter-row{display:flex;gap:8px;margin-bottom:1rem;align-items:center;flex-wrap:wrap}
+    .dash .filter-row select{font-size:13px;padding:5px 10px;border-radius:var(--border-radius-md);border:1px solid var(--color-border-secondary);background:var(--card);color:var(--color-text-primary);outline:none;}
+    .dash .filter-row label{font-size:13px;color:var(--color-text-secondary)}
   </style>
 </head>
 
@@ -737,6 +775,7 @@
   <div class="tabs">
     <button class="tab-btn active" id="tab-qr-btn" onclick="switchTab('qr',this)">🚗 Araçlar</button>
     <button class="tab-btn" id="tab-records-btn" style="display:none;" onclick="switchTab('records',this)">📋 Kayıtlar</button>
+    <button class="tab-btn" id="tab-dash-btn" style="display:none;" onclick="switchTab('dash',this)">📊 Analiz</button>
     <button class="tab-btn" id="tab-admin-btn" style="display:none;" onclick="switchTab('admin',this)">🔒 Admin
       Panel</button>
   </div>
@@ -799,6 +838,46 @@
         </table>
       </div>
       <button class="btn-red" style="margin-top:1.5rem;" onclick="exportCSV()">⬇ CSV İndir</button>
+    </div>
+  </div>
+
+  <div class="page" id="page-dash">
+    <div class="dash">
+      <div class="filter-row">
+        <label>Araç:</label>
+        <select id="filterPlaka" onchange="renderDashboard()"></select>
+        <label>Sürücü:</label>
+        <select id="filterSurucu" onchange="renderDashboard()"></select>
+      </div>
+
+      <div class="cards" id="dash-cards"></div>
+
+      <div class="charts-row">
+        <div class="chart-box">
+          <div class="chart-title">Günlük KM Kullanımı</div>
+          <div style="position:relative;height:200px"><canvas id="cGunluk" role="img"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">Sürücü Başına Toplam KM</div>
+          <div class="legend" id="legSurucu"></div>
+          <div style="position:relative;height:180px"><canvas id="cSurucu" role="img"></canvas></div>
+        </div>
+      </div>
+
+      <div class="charts-row">
+        <div class="chart-box">
+          <div class="chart-title">Kullanım Amacı Dağılımı</div>
+          <div class="legend" id="legAmac"></div>
+          <div style="position:relative;height:180px"><canvas id="cAmac" role="img"></canvas></div>
+        </div>
+        <div class="chart-box">
+          <div class="chart-title">Sefer Başına Ortalama KM (Güne Göre)</div>
+          <div style="position:relative;height:180px"><canvas id="cOrtalama" role="img"></canvas></div>
+        </div>
+      </div>
+
+      <div class="section-title">DİKKAT GEREKTİREN KAYITLAR</div>
+      <div id="dash-alerts"></div>
     </div>
   </div>
 
@@ -928,7 +1007,8 @@
           VEHICLES = d.vehicles || [];
           DRIVERS = d.drivers || [];
           setSync('ok', 'Güncel');
-          renderQR(); renderTable(); if (adminLoggedIn) renderAdmin();
+          if (!window.dashFiltersInitialized && adminLoggedIn) { renderDashFiltersInit(); window.dashFiltersInitialized = true; }
+          renderQR(); renderTable(); if (adminLoggedIn) { renderAdmin(); if(document.getElementById('page-dash').classList.contains('active')) renderDashboard(); }
           
           const urlParams = new URLSearchParams(window.location.search);
           const pPlate = urlParams.get('p');
@@ -1045,12 +1125,133 @@
       }).join('');
     }
 
-    function switchTab(t, b) { document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('page-' + t).classList.add('active'); if (t === 'admin') renderAdmin(); }
+    function switchTab(t, b) { document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('page-' + t).classList.add('active'); if (t === 'admin') renderAdmin(); if (t === 'dash' && window.dashFiltersInitialized) renderDashboard(); }
     function closeOverlay(id) { document.getElementById(id).classList.remove('open'); }
-    async function checkAdminLogin() { const pw = document.getElementById('admin-pw').value; const h = await sha256(pw); if (h === HASH_ADMIN) { adminLoggedIn = true; document.body.classList.add('admin-mode'); closeOverlay('m-admin-login'); document.getElementById('tab-admin-btn').style.display = ''; document.getElementById('tab-records-btn').style.display = ''; switchTab('admin', document.getElementById('tab-admin-btn')); } else { document.getElementById('login-err').textContent = 'Hatalı!'; } }
+    async function checkAdminLogin() { const pw = document.getElementById('admin-pw').value; const h = await sha256(pw); if (h === HASH_ADMIN) { adminLoggedIn = true; window.dashFiltersInitialized = false; document.body.classList.add('admin-mode'); closeOverlay('m-admin-login'); document.getElementById('tab-admin-btn').style.display = ''; document.getElementById('tab-records-btn').style.display = ''; document.getElementById('tab-dash-btn').style.display = ''; renderDashFiltersInit(); window.dashFiltersInitialized = true; switchTab('admin', document.getElementById('tab-admin-btn')); } else { document.getElementById('login-err').textContent = 'Hatalı!'; } }
     function toggleAdmin() { if (adminLoggedIn) switchTab('admin', document.getElementById('tab-admin-btn')); else document.getElementById('m-admin-login').classList.add('open'); }
     function renderAdmin() { const b = document.getElementById('admin-rec-body'); b.innerHTML = RECORDS.slice(0, 50).map((r, i) => `<tr><td>${i + 1}</td><td>${r.Tarih}</td><td>${r.Plaka}</td><td>${r.Sürücü}</td><td>${r.Durum}</td><td><button class="btn-edit" onclick="alert('Sheet üzerinden düzenleyin')">✏</button></td></tr>`).join(''); }
     function exportCSV() { alert('Sheet üzerinden indirin'); }
+
+    // --- DASHBOARD LOGIC ---
+    let dashCharts = {};
+    const DASH_COLORS = ['#3266ad','#1d9e75','#d85a30','#5a3ab7','#ba7517','#888780','#d4537e','#378add','#639922'];
+    function getDashColor(lbl) {
+      let hash = 0;
+      for(let i=0; i<lbl.length; i++) hash = lbl.charCodeAt(i) + ((hash<<5)-hash);
+      return DASH_COLORS[Math.abs(hash)%DASH_COLORS.length];
+    }
+    
+    function renderDashFiltersInit() {
+      const plates = [...new Set(RECORDS.filter(r => r.Durum !== 'AÇIK' && r['KM Farkı']).map(r => r.Plaka))].sort();
+      const drivers = [...new Set(RECORDS.filter(r => r.Durum !== 'AÇIK' && r['KM Farkı']).map(r => r.Sürücü))].sort();
+      document.getElementById('filterPlaka').innerHTML = '<option value="all">Tümü</option>' + plates.map(p => `<option value="${p}">${p}</option>`).join('');
+      document.getElementById('filterSurucu').innerHTML = '<option value="all">Tümü</option>' + drivers.map(d => `<option value="${d}">${d}</option>`).join('');
+    }
+
+    function dashFilteredData() {
+      const p = document.getElementById("filterPlaka").value;
+      const s = document.getElementById("filterSurucu").value;
+      return RECORDS.filter(r => r.Durum !== 'AÇIK' && r['KM Farkı'] && (p === "all" || r.Plaka === p) && (s === "all" || r.Sürücü === s));
+    }
+
+    function destroyDashChart(id) { if(dashCharts[id]){dashCharts[id].destroy();delete dashCharts[id];} }
+
+    function renderDashboard() {
+      const data = dashFilteredData();
+      
+      // Cards
+      const totalKm = data.reduce((a,r) => a + Number(r['KM Farkı']), 0);
+      const sefer = data.length;
+      const ortKm = sefer ? Math.round(totalKm/sefer) : 0;
+      const amacsiz = data.filter(r => !r['Kullanım Amacı'] || r['Kullanım Amacı'].trim()==="").length;
+      const daysSet = new Set(data.map(r => r.Tarih));
+      const activeDays = daysSet.size || 1;
+      
+      document.getElementById("dash-cards").innerHTML = `
+        <div class="card"><div class="label">Toplam KM</div><div class="val">${totalKm.toLocaleString('tr')}</div><div class="sub">${sefer} sefer</div></div>
+        <div class="card"><div class="label">Ortalama Sefer KM</div><div class="val">${ortKm}</div><div class="sub">km/sefer</div></div>
+        <div class="card"><div class="label">Günlük Ort. KM</div><div class="val">${Math.round(totalKm/activeDays)}</div><div class="sub">${activeDays} aktif gün</div></div>
+        <div class="card"><div class="label">Amaçsız Kayıt</div><div class="val" style="color:var(--color-text-warning)">${amacsiz}</div><div class="sub">amaç girilmemiş</div></div>
+      `;
+
+      // Gunluk Chart
+      const byDay = {};
+      data.forEach(r => { byDay[r.Tarih] = (byDay[r.Tarih]||0)+Number(r['KM Farkı']); });
+      const days = Object.keys(byDay).sort((a,b)=>{
+        const [da,ma,ya]=a.split('.').map(Number);
+        const [db,mb,yb]=b.split('.').map(Number);
+        return new Date(ya,ma-1,da)-new Date(yb,mb-1,db);
+      });
+      const lblGunluk = days.map(d=>d.substring(0, d.lastIndexOf('.'))); // remove year for short label
+      const valsGunluk = days.map(d=>byDay[d]);
+      destroyDashChart('cGunluk');
+      dashCharts['cGunluk'] = new Chart(document.getElementById('cGunluk'),{ type:'bar', data:{labels:lblGunluk,datasets:[{label:'Toplam km',data:valsGunluk,backgroundColor:'#f0c040',borderRadius:4}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{autoSkip:false,maxRotation:45,font:{size:11},color:'#7a7f8e'}},y:{ticks:{font:{size:11},color:'#7a7f8e'},grid:{color:'#252830'}}}} });
+
+      // Surucu Chart
+      const bySurucu = {};
+      data.forEach(r=>{bySurucu[r.Sürücü]=(bySurucu[r.Sürücü]||0)+Number(r['KM Farkı']);});
+      const lblSurucu = Object.keys(bySurucu);
+      const valsSurucu = lblSurucu.map(l=>bySurucu[l]);
+      const totalS = valsSurucu.reduce((a,b)=>a+b,0);
+      const bgSurucu = lblSurucu.map(l=>getDashColor(l));
+      document.getElementById('legSurucu').innerHTML = lblSurucu.map((l,i)=>`<span><i style="background:${bgSurucu[i]}"></i>${l} — ${bySurucu[l]} km (${totalS?Math.round(bySurucu[l]/totalS*100):0}%)</span>`).join('');
+      destroyDashChart('cSurucu');
+      dashCharts['cSurucu'] = new Chart(document.getElementById('cSurucu'),{ type:'doughnut', data:{labels:lblSurucu,datasets:[{data:valsSurucu,backgroundColor:bgSurucu,borderWidth:0}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'60%'} });
+
+      // Amac Chart
+      const byAmac = {};
+      data.forEach(r => {
+        let a = (r['Kullanım Amacı']||'').trim()||'Belirtilmemiş';
+        a = a.charAt(0).toUpperCase()+a.slice(1);
+        byAmac[a]=(byAmac[a]||0)+Number(r['KM Farkı']);
+      });
+      const sortedAmac = Object.entries(byAmac).sort((a,b)=>b[1]-a[1]);
+      const lblAmac = sortedAmac.map(x=>x[0]);
+      const valsAmac = sortedAmac.map(x=>x[1]);
+      const totalA = valsAmac.reduce((a,b)=>a+b,0);
+      const bgAmac = lblAmac.map(l=>getDashColor(l));
+      document.getElementById('legAmac').innerHTML = lblAmac.map((l,i)=>`<span><i style="background:${bgAmac[i]}"></i>${l} ${totalA?Math.round(valsAmac[i]/totalA*100):0}%</span>`).join('');
+      destroyDashChart('cAmac');
+      dashCharts['cAmac'] = new Chart(document.getElementById('cAmac'),{ type:'bar', data:{labels:lblAmac,datasets:[{data:valsAmac,backgroundColor:bgAmac,borderRadius:3}]}, options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11},color:'#7a7f8e'},grid:{color:'#252830'}},y:{ticks:{font:{size:10},color:'#7a7f8e'}}}} });
+
+      // Ortalama Chart
+      const byDayOrt = {};
+      data.forEach(r => {
+        if(!byDayOrt[r.Tarih]) byDayOrt[r.Tarih]={km:0,n:0};
+        byDayOrt[r.Tarih].km+=Number(r['KM Farkı']); byDayOrt[r.Tarih].n++;
+      });
+      const valsOrt = days.map(d=>Math.round(byDayOrt[d].km/byDayOrt[d].n));
+      destroyDashChart('cOrtalama');
+      dashCharts['cOrtalama']=new Chart(document.getElementById('cOrtalama'),{ type:'line', data:{labels:lblGunluk,datasets:[{label:'Ort. km',data:valsOrt,borderColor:'#40d4a0',backgroundColor:'rgba(64,212,160,.08)',tension:.3,pointRadius:4,fill:true}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{autoSkip:false,maxRotation:45,font:{size:11},color:'#7a7f8e'}},y:{ticks:{font:{size:11},color:'#7a7f8e'},grid:{color:'#252830'}}}} });
+
+      // Alerts
+      const alerts = [];
+      const cikisMap = {};
+      data.forEach(r=>{
+        const key = r.Plaka+'-'+r['Çıkış KM'];
+        if(!cikisMap[key])cikisMap[key]=[];
+        cikisMap[key].push(r);
+      });
+      Object.values(cikisMap).filter(v=>v.length>1).forEach(v=>{
+        alerts.push({tip:'Çift kayıt tespit edildi',detay:`${v[0].Plaka} — ${v[0].Tarih} saat ${v[0]['Çıkış Saati']}, aynı çıkış km ile ${v.length} kayıt. (ID'ler aynı KM ile başlıyor olabilir)`});
+      });
+      data.filter(r=>(!r['Kullanım Amacı']||r['Kullanım Amacı'].trim()==='')&&Number(r['KM Farkı'])>=80).forEach(r=>{
+        alerts.push({tip:'Amaçsız yüksek km sefer',detay:`${r.Plaka} — ${r.Sürücü}, ${r.Tarih} ${r['Çıkış Saati']}, ${r['KM Farkı']} km — kullanım amacı girilmemiş`});
+      });
+      data.filter(r=>{
+        if(!r['Çıkış Saati']) return false;
+        let timeMatch = r['Çıkış Saati'].toString().match(/(\d+):/);
+        if(!timeMatch) return false;
+        const ch = parseInt(timeMatch[1]);
+        return ch >= 15;
+      }).forEach(r=>{
+        if(Number(r['KM Farkı']) > 80) alerts.push({tip:'Gece/akşam uzun sefer',detay:`${r.Plaka} — ${r.Sürücü}, çıkış ${r['Çıkış Saati']} tarih ${r.Tarih}, ${r['KM Farkı']} km — ertesi gün dönüş yaşanmış olabilir.`});
+      });
+
+      const alertsBox = document.getElementById('dash-alerts');
+      if(alerts.length===0){ alertsBox.innerHTML='<div style="font-size:13px;color:var(--muted);padding:.5rem 0">Dikkat gerektiren kayıt bulunmuyor.</div>'; }
+      else { alertsBox.innerHTML = alerts.map(a=>`<div class="alert-box"><div class="at">${a.tip}</div><div class="ad">${a.detay}</div></div>`).join(''); }
+    }
 
     setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString('tr-TR'); }, 1000);
     loadRecords();

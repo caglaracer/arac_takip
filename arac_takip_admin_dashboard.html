@@ -1,0 +1,265 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+.dash{padding:1rem 0}
+.section-title{font-size:13px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.05em;margin:1.5rem 0 .75rem}
+.cards{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:1rem}
+.card{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:.875rem 1rem}
+.card .label{font-size:12px;color:var(--color-text-secondary);margin-bottom:6px}
+.card .val{font-size:22px;font-weight:500;color:var(--color-text-primary)}
+.card .sub{font-size:12px;color:var(--color-text-tertiary);margin-top:2px}
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1rem}
+.chart-box{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:1rem}
+.chart-box.full{grid-column:1/-1}
+.chart-title{font-size:13px;font-weight:500;color:var(--color-text-secondary);margin-bottom:12px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:10px;font-size:12px;color:var(--color-text-secondary)}
+.legend span{display:flex;align-items:center;gap:5px}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.alert-box{background:var(--color-background-warning);border:0.5px solid var(--color-border-warning);border-radius:var(--border-radius-md);padding:.75rem 1rem;margin-bottom:.5rem}
+.alert-box .at{font-size:13px;font-weight:500;color:var(--color-text-warning)}
+.alert-box .ad{font-size:12px;color:var(--color-text-secondary);margin-top:3px}
+.filter-row{display:flex;gap:8px;margin-bottom:1rem;align-items:center;flex-wrap:wrap}
+.filter-row select{font-size:13px;padding:5px 10px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-secondary);background:var(--color-background-primary);color:var(--color-text-primary)}
+.filter-row label{font-size:13px;color:var(--color-text-secondary)}
+</style>
+
+<div class="dash">
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden">Araç takip yönetim paneli - özet istatistikler ve grafikler</h2>
+
+<div class="filter-row">
+  <label>Araç:</label>
+  <select id="filterPlaka" onchange="render()">
+    <option value="all">Tümü</option>
+    <option value="06 BFK 860">06 BFK 860</option>
+    <option value="06 BOS 072">06 BOS 072</option>
+  </select>
+  <label>Sürücü:</label>
+  <select id="filterSurucu" onchange="render()">
+    <option value="all">Tümü</option>
+    <option value="Çağrı Deniz">Çağrı Deniz</option>
+    <option value="Serkan Ünal">Serkan Ünal</option>
+  </select>
+</div>
+
+<div class="cards" id="cards"></div>
+
+<div class="charts-row">
+  <div class="chart-box">
+    <div class="chart-title">Günlük km kullanımı</div>
+    <div style="position:relative;height:200px"><canvas id="cGunluk" role="img" aria-label="Günlük toplam km bar grafiği"></canvas></div>
+  </div>
+  <div class="chart-box">
+    <div class="chart-title">Sürücü başına toplam km</div>
+    <div class="legend" id="legSurucu"></div>
+    <div style="position:relative;height:180px"><canvas id="cSurucu" role="img" aria-label="Sürücü başına km doughnut grafiği"></canvas></div>
+  </div>
+</div>
+
+<div class="charts-row">
+  <div class="chart-box">
+    <div class="chart-title">Kullanım amacı dağılımı</div>
+    <div class="legend" id="legAmac"></div>
+    <div style="position:relative;height:180px"><canvas id="cAmac" role="img" aria-label="Kullanım amacı bar grafiği"></canvas></div>
+  </div>
+  <div class="chart-box">
+    <div class="chart-title">Sefer başına ortalama km (güne göre)</div>
+    <div style="position:relative;height:180px"><canvas id="cOrtalama" role="img" aria-label="Günlük ortalama sefer km çizgi grafiği"></canvas></div>
+  </div>
+</div>
+
+<div class="section-title">Dikkat gerektiren kayıtlar</div>
+<div id="alerts"></div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script>
+const RAW = [
+{id:"1775229332556",tarih:"3.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286056,donusKm:286143,km:87,amac:"",cikisSaat:"18:15"},
+{id:"1775456229507",tarih:"6.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286143,donusKm:286149,km:6,amac:"Alışveriş",cikisSaat:"09:17"},
+{id:"1775460932070",tarih:"6.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286150,donusKm:286200,km:50,amac:"",cikisSaat:"10:35"},
+{id:"1775462814743",tarih:"6.04.2026",plaka:"06 BOS 072",model:"PASSAT 1.6",surucu:"Serkan Ünal",cikisKm:161590,donusKm:161598,km:8,amac:"kgm",cikisSaat:"11:06"},
+{id:"1775468889850",tarih:"6.04.2026",plaka:"06 BOS 072",model:"PASSAT 1.6",surucu:"Çağrı Deniz",cikisKm:161597,donusKm:161602,km:5,amac:"",cikisSaat:"12:48"},
+{id:"1775474451697",tarih:"6.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286200,donusKm:286205,km:5,amac:"",cikisSaat:"14:20"},
+{id:"1775480474707",tarih:"6.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286205,donusKm:286300,km:95,amac:"Ece",cikisSaat:"16:01"},
+{id:"1775543254051",tarih:"7.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286300,donusKm:286392,km:92,amac:"Havaalanı",cikisSaat:"09:27"},
+{id:"1775547500073",tarih:"7.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286392,donusKm:286411,km:19,amac:"",cikisSaat:"10:38"},
+{id:"1775550400605",tarih:"7.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286411,donusKm:286474,km:63,amac:"",cikisSaat:"11:26"},
+{id:"1775557073912",tarih:"7.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286474,donusKm:286485,km:11,amac:"",cikisSaat:"13:17"},
+{id:"1775558435796",tarih:"7.04.2026",plaka:"06 BOS 072",model:"PASSAT 1.6",surucu:"Serkan Ünal",cikisKm:161639,donusKm:161678,km:39,amac:"hakediş",cikisSaat:"13:40"},
+{id:"1775560757573",tarih:"7.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286485,donusKm:286590,km:105,amac:"",cikisSaat:"14:19"},
+{id:"1775625038321",tarih:"8.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286590,donusKm:286638,km:48,amac:"Sanayi",cikisSaat:"08:10"},
+{id:"1775636489734",tarih:"8.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286638,donusKm:286687,km:49,amac:"Evrak-Ece",cikisSaat:"11:21"},
+{id:"1775656804903",tarih:"8.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286709,donusKm:286810,km:101,amac:"Ece",cikisSaat:"17:00"},
+{id:"1775712084794",tarih:"9.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286810,donusKm:286818,km:8,amac:"",cikisSaat:"08:21"},
+{id:"1775717242894",tarih:"9.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286818,donusKm:286835,km:17,amac:"",cikisSaat:"09:47"},
+{id:"1775720328296",tarih:"9.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Serkan Ünal",cikisKm:286835,donusKm:286850,km:15,amac:"kgm",cikisSaat:"10:38"},
+{id:"1775730818424",tarih:"9.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286850,donusKm:286918,km:68,amac:"Gar-havaalanı",cikisSaat:"13:33"},
+{id:"1775746419435",tarih:"9.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286918,donusKm:286939,km:21,amac:"",cikisSaat:"17:53"},
+{id:"1775803842818",tarih:"10.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:286939,donusKm:287038,km:99,amac:"Havaalanı",cikisSaat:"09:50"},
+{id:"1775823440141",tarih:"10.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:287039,donusKm:287200,km:161,amac:"Havaalanı",cikisSaat:"15:17"},
+{id:"1776059427965",tarih:"13.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:287280,donusKm:287394,km:114,amac:"Havaalanı",cikisSaat:"08:50"},
+{id:"1776067152516",tarih:"13.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:287394,donusKm:287577,km:183,amac:"",cikisSaat:"10:59"},
+{id:"1776142129823",tarih:"14.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:287577,donusKm:287754,km:177,amac:"",cikisSaat:"07:48"},
+{id:"1776142132305",tarih:"14.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:287577,donusKm:287754,km:177,amac:"",cikisSaat:"07:48"},
+{id:"1776170735503",tarih:"14.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:287754,donusKm:287881,km:127,amac:"Havaalanı",cikisSaat:"15:45"},
+{id:"1776229429227",tarih:"15.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:287881,donusKm:287912,km:31,amac:"",cikisSaat:"08:03"},
+{id:"1776229432526",tarih:"15.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:287881,donusKm:287912,km:31,amac:"",cikisSaat:"08:03"},
+{id:"1776233552063",tarih:"15.04.2026",plaka:"06 BOS 072",model:"PASSAT 1.6",surucu:"Çağrı Deniz",cikisKm:162077,donusKm:162082,km:5,amac:"Yıkama",cikisSaat:"09:12"},
+{id:"1776236110437",tarih:"15.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:287912,donusKm:287917,km:5,amac:"Yıkama",cikisSaat:"09:55"},
+{id:"1776247651789",tarih:"15.04.2026",plaka:"06 BFK 860",model:"PASSAT 1.4",surucu:"Çağrı Deniz",cikisKm:287918,donusKm:287937,km:19,amac:"",cikisSaat:"13:07"},
+];
+
+const COLORS = {
+  "Çağrı Deniz": "#3266ad",
+  "Serkan Ünal": "#1d9e75",
+  "06 BFK 860": "#5a3ab7",
+  "06 BOS 072": "#d85a30",
+};
+
+let charts = {};
+
+function filtered(){
+  const p = document.getElementById("filterPlaka").value;
+  const s = document.getElementById("filterSurucu").value;
+  return RAW.filter(r => (p==="all"||r.plaka===p) && (s==="all"||r.surucu===s));
+}
+
+function render(){
+  const data = filtered();
+  renderCards(data);
+  renderGunluk(data);
+  renderSurucu(data);
+  renderAmac(data);
+  renderOrtalama(data);
+  renderAlerts();
+}
+
+function renderCards(data){
+  const totalKm = data.reduce((a,r)=>a+r.km,0);
+  const sefer = data.length;
+  const ortKm = sefer ? Math.round(totalKm/sefer) : 0;
+  const amacsiz = data.filter(r=>!r.amac||r.amac.trim()==="").length;
+  document.getElementById("cards").innerHTML = `
+    <div class="card"><div class="label">Toplam km</div><div class="val">${totalKm.toLocaleString('tr')}</div><div class="sub">${sefer} sefer</div></div>
+    <div class="card"><div class="label">Ortalama sefer km</div><div class="val">${ortKm}</div><div class="sub">km/sefer</div></div>
+    <div class="card"><div class="label">Günlük ort. km</div><div class="val">${Math.round(totalKm/9)}</div><div class="sub">9 aktif gün</div></div>
+    <div class="card"><div class="label">Amaçsız kayıt</div><div class="val" style="color:var(--color-text-warning)">${amacsiz}</div><div class="sub">amaç girilmemiş</div></div>
+  `;
+}
+
+function destroyChart(id){
+  if(charts[id]){charts[id].destroy();delete charts[id];}
+}
+
+function renderGunluk(data){
+  const byDay = {};
+  data.forEach(r=>{byDay[r.tarih]=(byDay[r.tarih]||0)+r.km;});
+  const days = Object.keys(byDay).sort((a,b)=>{
+    const [da,ma,ya]=a.split('.').map(Number);
+    const [db,mb,yb]=b.split('.').map(Number);
+    return new Date(ya,ma-1,da)-new Date(yb,mb-1,db);
+  });
+  const labels = days.map(d=>d.replace('.2026',''));
+  const vals = days.map(d=>byDay[d]);
+  destroyChart('cGunluk');
+  charts['cGunluk']=new Chart(document.getElementById('cGunluk'),{
+    type:'bar',
+    data:{labels,datasets:[{label:'Toplam km',data:vals,backgroundColor:'#3266ad',borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{autoSkip:false,maxRotation:45,font:{size:11}}},y:{ticks:{font:{size:11}}}}}
+  });
+}
+
+function renderSurucu(data){
+  const bySurucu = {};
+  data.forEach(r=>{bySurucu[r.surucu]=(bySurucu[r.surucu]||0)+r.km;});
+  const labels = Object.keys(bySurucu);
+  const vals = labels.map(l=>bySurucu[l]);
+  const total = vals.reduce((a,b)=>a+b,0);
+  const bgColors = labels.map(l=>COLORS[l]||'#888');
+  document.getElementById('legSurucu').innerHTML = labels.map((l,i)=>`<span><i style="background:${bgColors[i]}"></i>${l} — ${bySurucu[l]} km (${Math.round(bySurucu[l]/total*100)}%)</span>`).join('');
+  destroyChart('cSurucu');
+  charts['cSurucu']=new Chart(document.getElementById('cSurucu'),{
+    type:'doughnut',
+    data:{labels,datasets:[{data:vals,backgroundColor:bgColors,borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},cutout:'60%'}
+  });
+}
+
+function renderAmac(data){
+  const byAmac = {};
+  data.forEach(r=>{
+    let a = (r.amac||'').trim()||'Belirtilmemiş';
+    a = a.charAt(0).toUpperCase()+a.slice(1);
+    byAmac[a]=(byAmac[a]||0)+r.km;
+  });
+  const sorted = Object.entries(byAmac).sort((a,b)=>b[1]-a[1]);
+  const labels = sorted.map(x=>x[0]);
+  const vals = sorted.map(x=>x[1]);
+  const total = vals.reduce((a,b)=>a+b,0);
+  const bgColors = ['#3266ad','#1d9e75','#d85a30','#5a3ab7','#ba7517','#888780','#d4537e','#378add','#639922'];
+  document.getElementById('legAmac').innerHTML = labels.map((l,i)=>`<span><i style="background:${bgColors[i%bgColors.length]}"></i>${l} ${Math.round(vals[i]/total*100)}%</span>`).join('');
+  destroyChart('cAmac');
+  charts['cAmac']=new Chart(document.getElementById('cAmac'),{
+    type:'bar',
+    data:{labels,datasets:[{data:vals,backgroundColor:bgColors.slice(0,labels.length),borderRadius:3}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11}}},y:{ticks:{font:{size:10}}}}}
+  });
+}
+
+function renderOrtalama(data){
+  const byDay = {};
+  data.forEach(r=>{
+    if(!byDay[r.tarih])byDay[r.tarih]={km:0,n:0};
+    byDay[r.tarih].km+=r.km;byDay[r.tarih].n++;
+  });
+  const days = Object.keys(byDay).sort((a,b)=>{
+    const [da,ma,ya]=a.split('.').map(Number);
+    const [db,mb,yb]=b.split('.').map(Number);
+    return new Date(ya,ma-1,da)-new Date(yb,mb-1,db);
+  });
+  const labels = days.map(d=>d.replace('.2026',''));
+  const vals = days.map(d=>Math.round(byDay[d].km/byDay[d].n));
+  destroyChart('cOrtalama');
+  charts['cOrtalama']=new Chart(document.getElementById('cOrtalama'),{
+    type:'line',
+    data:{labels,datasets:[{label:'Ort. km',data:vals,borderColor:'#d85a30',backgroundColor:'rgba(216,90,48,.08)',tension:.3,pointRadius:4,fill:true}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{autoSkip:false,maxRotation:45,font:{size:11}}},y:{ticks:{font:{size:11}}}}}
+  });
+}
+
+function renderAlerts(){
+  const alerts = [];
+
+  // Çift kayıtlar: aynı cikisKm değeri
+  const cikisMap = {};
+  RAW.forEach(r=>{
+    const key = r.plaka+'-'+r.cikisKm;
+    if(!cikisMap[key])cikisMap[key]=[];
+    cikisMap[key].push(r);
+  });
+  Object.values(cikisMap).filter(v=>v.length>1).forEach(v=>{
+    alerts.push({tip:'Çift kayıt tespit edildi',detay:`${v[0].plaka} — ${v[0].tarih} saat ${v[0].cikisSaat}, aynı çıkış km ile ${v.length} kayıt (ID: ${v.map(x=>x.id.slice(-6)).join(', ')})`});
+  });
+
+  // Amaçsız yüksek km seferler
+  RAW.filter(r=>(!r.amac||r.amac.trim()==='')&&r.km>=80).forEach(r=>{
+    alerts.push({tip:'Amaçsız yüksek km sefer',detay:`${r.plaka} — ${r.surucu}, ${r.tarih} ${r.cikisSaat}, ${r.km} km — kullanım amacı girilmemiş`});
+  });
+
+  // 1 km farkı olan gece geçişli seferler (çıkış akşam, dönüş sabah)
+  RAW.filter(r=>{
+    const ch = parseInt(r.cikisSaat.split(':')[0]);
+    return ch >= 15;
+  }).forEach(r=>{
+    if(r.km > 80) alerts.push({tip:'Gece/akşam uzun sefer',detay:`${r.plaka} — ${r.surucu}, çıkış ${r.cikisSaat} tarih ${r.tarih}, ${r.km} km — ertesi gün dönüş`});
+  });
+
+  const box = document.getElementById('alerts');
+  if(alerts.length===0){box.innerHTML='<div style="font-size:13px;color:var(--color-text-secondary);padding:.5rem 0">Dikkat gerektiren kayıt bulunmuyor.</div>';return;}
+  box.innerHTML = alerts.map(a=>`<div class="alert-box"><div class="at">${a.tip}</div><div class="ad">${a.detay}</div></div>`).join('');
+}
+
+render();
+</script>
