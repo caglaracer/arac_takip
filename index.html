@@ -1336,24 +1336,20 @@
       const select = document.getElementById('maint-plate');
       if (!select) return;
       
-      const tracked = VEHICLES.filter(v => v.Takip !== 'HAYIR' && v.Takip !== 'False' && v.Takip !== false && v.Takip !== 'no');
-      const untracked = VEHICLES.filter(v => v.Takip === 'HAYIR' || v.Takip === 'False' || v.Takip === false || v.Takip === 'no');
+      // Kayıtlı araçlar (en başta sıralanacak)
+      const tracked = VEHICLES.filter(v => v.Takip !== 'HAYIR' && v.Takip !== 'False' && v.Takip !== false && v.Takip !== 'no')
+                              .sort((a, b) => (a.Plaka || '').localeCompare(b.Plaka || ''));
+                              
+      // Kayıt dışı/takip edilmeyen diğer araçlar
+      const untracked = VEHICLES.filter(v => v.Takip === 'HAYIR' || v.Takip === 'False' || v.Takip === false || v.Takip === 'no')
+                                .sort((a, b) => (a.Plaka || '').localeCompare(b.Plaka || ''));
+      
+      const allVehicles = [...tracked, ...untracked];
       
       let html = '';
-      if (untracked.length > 0) {
-        html += `<optgroup label="Diğer Araçlar (Kayıtlı Olmayan)">`;
-        untracked.forEach(v => {
-          html += `<option value="${v.Plaka}">${v.Plaka}</option>`;
-        });
-        html += `</optgroup>`;
-      }
-      if (tracked.length > 0) {
-        html += `<optgroup label="Kayıtlı Araçlar">`;
-        tracked.forEach(v => {
-          html += `<option value="${v.Plaka}">${v.Plaka}</option>`;
-        });
-        html += `</optgroup>`;
-      }
+      allVehicles.forEach(v => {
+        html += `<option value="${v.Plaka}">${v.Plaka}</option>`;
+      });
       select.innerHTML = html;
     }
 
