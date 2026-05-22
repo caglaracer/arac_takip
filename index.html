@@ -716,8 +716,9 @@
     .dash .alert-box .at{font-size:13px;font-weight:600;color:var(--color-text-warning)}
     .dash .alert-box .ad{font-size:12px;color:var(--text);margin-top:4px}
     .dash .filter-row{display:flex;gap:8px;margin-bottom:1rem;align-items:center;flex-wrap:wrap}
-    .dash .filter-row select{font-size:13px;padding:5px 10px;border-radius:var(--border-radius-md);border:1px solid var(--color-border-secondary);background:var(--card);color:var(--color-text-primary);outline:none;}
-    .dash .filter-row label{font-size:13px;color:var(--color-text-secondary)}
+    .dash .filter-row select, .dash .filter-row input[type="date"]{font-size:13px;padding:5px 10px;border-radius:var(--border-radius-md);border:1px solid var(--color-border-secondary);background:var(--card);color:var(--color-text-primary);outline:none;font-family:inherit;}
+    .dash .filter-row label{font-size:13px;color:var(--color-text-secondary);margin-left:4px;}
+    .dash .filter-row label:first-of-type{margin-left:0;}
   </style>
 </head>
 
@@ -844,17 +845,42 @@
   <div class="page" id="page-dash">
     <div class="dash">
       <div class="filter-row">
-        <label>Araç:</label>
+        <label for="filterPlaka">Araç:</label>
         <select id="filterPlaka" onchange="renderDashboard()"></select>
-        <label>Sürücü:</label>
+        
+        <label for="filterSurucu">Sürücü:</label>
         <select id="filterSurucu" onchange="renderDashboard()"></select>
+        
+        <label for="filterTarih">Tarih:</label>
+        <select id="filterTarih" onchange="onDateFilterChange()">
+          <option value="all">Tümü</option>
+          <option value="last7">Son 7 Gün</option>
+          <option value="last30">Son 30 Gün</option>
+          <option value="thisMonth">Bu Ay</option>
+          <option value="thisYear">Bu Yıl</option>
+          <option value="custom">Özel Aralık...</option>
+        </select>
+        
+        <span id="custom-date-inputs" style="display: none; align-items: center; gap: 6px;">
+          <input type="date" id="filterStartDate" onchange="renderDashboard()">
+          <span style="font-size: 13px; color: var(--muted);">-</span>
+          <input type="date" id="filterEndDate" onchange="renderDashboard()">
+        </span>
+        
+        <label for="filterGroup">Grafik Detayı:</label>
+        <select id="filterGroup" onchange="renderDashboard()">
+          <option value="auto">Otomatik</option>
+          <option value="daily">Günlük</option>
+          <option value="weekly">Haftalık</option>
+          <option value="monthly">Aylık</option>
+        </select>
       </div>
 
       <div class="cards" id="dash-cards"></div>
 
       <div class="charts-row">
         <div class="chart-box">
-          <div class="chart-title">Günlük KM Kullanımı</div>
+          <div class="chart-title" id="cGunlukTitle">Günlük KM Kullanımı</div>
           <div style="position:relative;height:200px"><canvas id="cGunluk" role="img"></canvas></div>
         </div>
         <div class="chart-box">
@@ -871,7 +897,7 @@
           <div style="position:relative;height:180px"><canvas id="cAmac" role="img"></canvas></div>
         </div>
         <div class="chart-box">
-          <div class="chart-title">Sefer Başına Ortalama KM (Güne Göre)</div>
+          <div class="chart-title" id="cOrtalamaTitle">Sefer Başına Ortalama KM (Güne Göre)</div>
           <div style="position:relative;height:180px"><canvas id="cOrtalama" role="img"></canvas></div>
         </div>
       </div>
@@ -889,7 +915,7 @@
       <div style="font-size:.7rem;color:var(--muted);margin-bottom:.5rem;">SÜRÜCÜ SEÇİN</div>
       <div class="driver-grid" id="mc-drivers"></div>
       <div class="form-row">
-        <div class="form-group"><label>Çıkış KM</label><input type="number" id="mc-km"></div>
+        <div class="form-group"><label>Çıkış KM</label><input type="number" id="mc-km" max="999999" oninput="if(value.length>6) value=value.slice(0,6)"></div>
         <div class="form-group"><label>Amaç</label><input type="text" id="mc-purpose"></div>
       </div>
       <div class="form-row full">
@@ -909,7 +935,7 @@
       <div class="stamp-box" id="mr-stamp"></div>
       <div class="form-row">
         <div class="form-group"><label>Sürücü</label><input type="text" id="mr-drv" readonly></div>
-        <div class="form-group"><label>Dönüş KM</label><input type="number" id="mr-km"></div>
+        <div class="form-group"><label>Dönüş KM</label><input type="number" id="mr-km" max="999999" oninput="if(value.length>6) value=value.slice(0,6)"></div>
       </div>
       <div class="modal-actions">
         <button class="btn-red" id="mr-sub-btn" onclick="confirmReturn()">🏁 KAYDET</button>
@@ -1078,6 +1104,7 @@
     async function confirmCheckout() {
       if (!window.selectedDriver) { alert('Sürücü seçin!'); return; }
       const km = document.getElementById('mc-km').value; if (!km) { alert('KM girin!'); return; }
+      if (Number(km) > 999999) { alert('Hata: Çıkış KM en fazla 999999 olabilir!'); return; }
       const payload = {
         action: 'checkout', id: Date.now(), plate: activeVehicle.Plaka, model: activeVehicle.Model,
         driver: window.selectedDriver, checkoutKm: km, checkoutTime: new Date().toLocaleTimeString('tr-TR'),
@@ -1098,6 +1125,7 @@
 
     async function confirmReturn() {
       const km = document.getElementById('mr-km').value; if (!km) { alert('KM girin!'); return; }
+      if (Number(km) > 999999) { alert('Hata: Dönüş KM en fazla 999999 olabilir!'); return; }
       const diff = Number(km) - Number(activeRecord['Çıkış KM']);
       if (diff < 0) { alert('Hata: Dönüş KM, çıkış KM\'den (' + activeRecord['Çıkış KM'] + ') düşük olamaz!'); return; }
       if (diff > 100) {
@@ -1148,10 +1176,96 @@
       document.getElementById('filterSurucu').innerHTML = '<option value="all">Tümü</option>' + drivers.map(d => `<option value="${d}">${d}</option>`).join('');
     }
 
+    function parseDateStr(s) {
+      if (!s) return null;
+      const parts = s.split('.');
+      if (parts.length !== 3) return null;
+      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]), 0, 0, 0, 0);
+    }
+
+    function onDateFilterChange() {
+      const val = document.getElementById("filterTarih").value;
+      const customDiv = document.getElementById("custom-date-inputs");
+      if (val === "custom") {
+        customDiv.style.display = "inline-flex";
+      } else {
+        customDiv.style.display = "none";
+      }
+      renderDashboard();
+    }
+
+    function getWeekStart(date) {
+      const currentDay = date.getDay();
+      const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+      const monday = new Date(date);
+      monday.setDate(date.getDate() + distanceToMonday);
+      monday.setHours(0,0,0,0);
+      return monday;
+    }
+
+    function getWeekRangeLabel(monday) {
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      const pad = (n) => n.toString().padStart(2, '0');
+      const mStr = `${pad(monday.getDate())}.${pad(monday.getMonth() + 1)}`;
+      const sStr = `${pad(sunday.getDate())}.${pad(sunday.getMonth() + 1)}`;
+      return `${mStr} - ${sStr}`;
+    }
+
+    function getMonthStart(date) {
+      return new Date(date.getFullYear(), date.getMonth(), 1);
+    }
+
+    const TURKISH_MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+    function getMonthLabel(date) {
+      return `${TURKISH_MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+    }
+
     function dashFilteredData() {
       const p = document.getElementById("filterPlaka").value;
       const s = document.getElementById("filterSurucu").value;
-      return RECORDS.filter(r => r.Durum !== 'AÇIK' && r['KM Farkı'] && (p === "all" || r.Plaka === p) && (s === "all" || r.Sürücü === s));
+      let data = RECORDS.filter(r => r.Durum !== 'AÇIK' && r['KM Farkı'] && (p === "all" || r.Plaka === p) && (s === "all" || r.Sürücü === s));
+      
+      const dateFilter = document.getElementById("filterTarih").value;
+      if (dateFilter !== "all") {
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        let startLimit = null;
+        let endLimit = new Date();
+        endLimit.setHours(23,59,59,999);
+        
+        if (dateFilter === "last7") {
+          startLimit = new Date(today);
+          startLimit.setDate(today.getDate() - 6);
+        } else if (dateFilter === "last30") {
+          startLimit = new Date(today);
+          startLimit.setDate(today.getDate() - 29);
+        } else if (dateFilter === "thisMonth") {
+          startLimit = new Date(today.getFullYear(), today.getMonth(), 1);
+        } else if (dateFilter === "thisYear") {
+          startLimit = new Date(today.getFullYear(), 0, 1);
+        } else if (dateFilter === "custom") {
+          const sVal = document.getElementById("filterStartDate").value;
+          const eVal = document.getElementById("filterEndDate").value;
+          if (sVal) {
+            startLimit = new Date(sVal);
+            startLimit.setHours(0,0,0,0);
+          }
+          if (eVal) {
+            endLimit = new Date(eVal);
+            endLimit.setHours(23,59,59,999);
+          }
+        }
+        
+        data = data.filter(r => {
+          const rd = parseDateStr(r.Tarih);
+          if (!rd) return false;
+          if (startLimit && rd < startLimit) return false;
+          if (endLimit && rd > endLimit) return false;
+          return true;
+        });
+      }
+      return data;
     }
 
     function destroyDashChart(id) { if(dashCharts[id]){dashCharts[id].destroy();delete dashCharts[id];} }
@@ -1174,18 +1288,89 @@
         <div class="card"><div class="label">Amaçsız Kayıt</div><div class="val" style="color:var(--color-text-warning)">${amacsiz}</div><div class="sub">amaç girilmemiş</div></div>
       `;
 
-      // Gunluk Chart
-      const byDay = {};
-      data.forEach(r => { byDay[r.Tarih] = (byDay[r.Tarih]||0)+Number(r['KM Farkı']); });
-      const days = Object.keys(byDay).sort((a,b)=>{
-        const [da,ma,ya]=a.split('.').map(Number);
-        const [db,mb,yb]=b.split('.').map(Number);
-        return new Date(ya,ma-1,da)-new Date(yb,mb-1,db);
+      // Determine timeline grouping
+      let groupVal = document.getElementById("filterGroup").value;
+      if (groupVal === "auto") {
+        if (data.length === 0) {
+          groupVal = "daily";
+        } else {
+          const dates = data.map(r => parseDateStr(r.Tarih)).filter(Boolean);
+          const minDate = new Date(Math.min(...dates));
+          const maxDate = new Date(Math.max(...dates));
+          const diffDays = Math.ceil((maxDate - minDate) / (1000 * 60 * 60 * 24));
+          if (diffDays <= 30) {
+            groupVal = "daily";
+          } else if (diffDays <= 90) {
+            groupVal = "weekly";
+          } else {
+            groupVal = "monthly";
+          }
+        }
+      }
+
+      // Update Chart Titles dynamically
+      const timelineTitle = groupVal === "daily" ? "Günlük KM Kullanımı" : (groupVal === "weekly" ? "Haftalık KM Kullanımı" : "Aylık KM Kullanımı");
+      document.getElementById("cGunlukTitle").textContent = timelineTitle;
+      
+      const avgTitle = groupVal === "daily" ? "Sefer Başına Ortalama KM (Güne Göre)" : (groupVal === "weekly" ? "Sefer Başına Ortalama KM (Haftaya Göre)" : "Sefer Başına Ortalama KM (Aya Göre)");
+      document.getElementById("cOrtalamaTitle").textContent = avgTitle;
+
+      // Group timeline data
+      const groupedTimeline = {};
+      data.forEach(r => {
+        const d = parseDateStr(r.Tarih);
+        if (!d) return;
+        
+        let key, label, sortKey;
+        if (groupVal === "daily") {
+          key = r.Tarih;
+          label = r.Tarih.substring(0, r.Tarih.lastIndexOf('.'));
+          sortKey = d;
+        } else if (groupVal === "weekly") {
+          const monday = getWeekStart(d);
+          key = monday.toISOString().split('T')[0];
+          label = getWeekRangeLabel(monday);
+          sortKey = monday;
+        } else { // monthly
+          const monthStart = getMonthStart(d);
+          key = monthStart.toISOString().split('T')[0].substring(0, 7);
+          label = getMonthLabel(monthStart);
+          sortKey = monthStart;
+        }
+        
+        if (!groupedTimeline[key]) {
+          groupedTimeline[key] = { label, sortKey, totalKm: 0, count: 0 };
+        }
+        groupedTimeline[key].totalKm += Number(r['KM Farkı']);
+        groupedTimeline[key].count += 1;
       });
-      const lblGunluk = days.map(d=>d.substring(0, d.lastIndexOf('.'))); // remove year for short label
-      const valsGunluk = days.map(d=>byDay[d]);
+      
+      const sortedKeys = Object.keys(groupedTimeline).sort((a, b) => {
+        return groupedTimeline[a].sortKey - groupedTimeline[b].sortKey;
+      });
+      
+      const lblTimeline = sortedKeys.map(k => groupedTimeline[k].label);
+      const valsTotalKm = sortedKeys.map(k => groupedTimeline[k].totalKm);
+      const valsAvgKm = sortedKeys.map(k => Math.round(groupedTimeline[k].totalKm / groupedTimeline[k].count));
+
+      // Gunluk (Timeline) Chart
       destroyDashChart('cGunluk');
-      dashCharts['cGunluk'] = new Chart(document.getElementById('cGunluk'),{ type:'bar', data:{labels:lblGunluk,datasets:[{label:'Toplam km',data:valsGunluk,backgroundColor:'#f0c040',borderRadius:4}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{autoSkip:false,maxRotation:45,font:{size:11},color:'#7a7f8e'}},y:{ticks:{font:{size:11},color:'#7a7f8e'},grid:{color:'#252830'}}}} });
+      dashCharts['cGunluk'] = new Chart(document.getElementById('cGunluk'),{ 
+        type:'bar', 
+        data:{
+          labels:lblTimeline,
+          datasets:[{label:'Toplam km',data:valsTotalKm,backgroundColor:'#f0c040',borderRadius:4}]
+        }, 
+        options:{
+          responsive:true,
+          maintainAspectRatio:false,
+          plugins:{legend:{display:false}},
+          scales:{
+            x:{ticks:{autoSkip:true,maxRotation:45,font:{size:11},color:'#7a7f8e'}},
+            y:{ticks:{font:{size:11},color:'#7a7f8e'},grid:{color:'#252830'}}
+          }
+        } 
+      });
 
       // Surucu Chart
       const bySurucu = {};
@@ -1205,24 +1390,31 @@
         a = a.charAt(0).toUpperCase()+a.slice(1);
         byAmac[a]=(byAmac[a]||0)+Number(r['KM Farkı']);
       });
-      const sortedAmac = Object.entries(byAmac).sort((a,b)=>b[1]-a[1]);
+      
+      let sortedAmac = Object.entries(byAmac).sort((a,b)=>b[1]-a[1]);
+      const totalA = sortedAmac.reduce((sum, x) => sum + x[1], 0);
+      
+      if (sortedAmac.length > 6) {
+        const topCategories = sortedAmac.slice(0, 5);
+        const otherCategories = sortedAmac.slice(5);
+        const otherSum = otherCategories.reduce((sum, x) => sum + x[1], 0);
+        if (otherSum > 0) {
+          topCategories.push(["Diğer", otherSum]);
+        }
+        sortedAmac = topCategories;
+      }
+      
       const lblAmac = sortedAmac.map(x=>x[0]);
       const valsAmac = sortedAmac.map(x=>x[1]);
-      const totalA = valsAmac.reduce((a,b)=>a+b,0);
-      const bgAmac = lblAmac.map(l=>getDashColor(l));
+      const bgAmac = lblAmac.map(l=>l === "Diğer" ? "#7a7f8e" : getDashColor(l));
+      
       document.getElementById('legAmac').innerHTML = lblAmac.map((l,i)=>`<span><i style="background:${bgAmac[i]}"></i>${l} ${totalA?Math.round(valsAmac[i]/totalA*100):0}%</span>`).join('');
       destroyDashChart('cAmac');
       dashCharts['cAmac'] = new Chart(document.getElementById('cAmac'),{ type:'bar', data:{labels:lblAmac,datasets:[{data:valsAmac,backgroundColor:bgAmac,borderRadius:3}]}, options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{font:{size:11},color:'#7a7f8e'},grid:{color:'#252830'}},y:{ticks:{font:{size:10},color:'#7a7f8e'}}}} });
 
       // Ortalama Chart
-      const byDayOrt = {};
-      data.forEach(r => {
-        if(!byDayOrt[r.Tarih]) byDayOrt[r.Tarih]={km:0,n:0};
-        byDayOrt[r.Tarih].km+=Number(r['KM Farkı']); byDayOrt[r.Tarih].n++;
-      });
-      const valsOrt = days.map(d=>Math.round(byDayOrt[d].km/byDayOrt[d].n));
       destroyDashChart('cOrtalama');
-      dashCharts['cOrtalama']=new Chart(document.getElementById('cOrtalama'),{ type:'line', data:{labels:lblGunluk,datasets:[{label:'Ort. km',data:valsOrt,borderColor:'#40d4a0',backgroundColor:'rgba(64,212,160,.08)',tension:.3,pointRadius:4,fill:true}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{autoSkip:false,maxRotation:45,font:{size:11},color:'#7a7f8e'}},y:{ticks:{font:{size:11},color:'#7a7f8e'},grid:{color:'#252830'}}}} });
+      dashCharts['cOrtalama']=new Chart(document.getElementById('cOrtalama'),{ type:'line', data:{labels:lblTimeline,datasets:[{label:'Ort. km',data:valsAvgKm,borderColor:'#40d4a0',backgroundColor:'rgba(64,212,160,.08)',tension:.3,pointRadius:4,fill:true}]}, options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{autoSkip:true,maxRotation:45,font:{size:11},color:'#7a7f8e'}},y:{ticks:{font:{size:11},color:'#7a7f8e'},grid:{color:'#252830'}}}} });
 
       // Alerts
       const alerts = [];
@@ -1233,7 +1425,7 @@
         cikisMap[key].push(r);
       });
       Object.values(cikisMap).filter(v=>v.length>1).forEach(v=>{
-        alerts.push({tip:'Çift kayıt tespit edildi',detay:`${v[0].Plaka} — ${v[0].Tarih} saat ${v[0]['Çıkış Saati']}, aynı çıkış km ile ${v.length} kayıt. (ID'ler aynı KM ile başlıyor olabilir)`});
+        alerts.push({tip:'Çift kayıt tespit edildi',detay:`${v[0].Plaka} — ${v[0].Tarih} saat ${v[0]['Çıkış Saati']}, aynı çıkış km ile ${v.length} kayıt.`});
       });
       data.filter(r=>(!r['Kullanım Amacı']||r['Kullanım Amacı'].trim()==='')&&Number(r['KM Farkı'])>=80).forEach(r=>{
         alerts.push({tip:'Amaçsız yüksek km sefer',detay:`${r.Plaka} — ${r.Sürücü}, ${r.Tarih} ${r['Çıkış Saati']}, ${r['KM Farkı']} km — kullanım amacı girilmemiş`});
