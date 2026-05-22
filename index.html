@@ -614,6 +614,41 @@
       color: #fff;
     }
 
+    /* Maintenance Tab Styles */
+    .btn-group-toggle {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0.2rem;
+      width: 100%;
+    }
+    .toggle-btn {
+      flex: 1;
+      background: var(--card);
+      border: 1px solid var(--border2);
+      color: var(--muted);
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .78rem;
+      font-weight: 600;
+      padding: .65rem;
+      border-radius: 4px;
+      cursor: pointer;
+      text-align: center;
+      transition: all .2s;
+      text-transform: uppercase;
+    }
+    .toggle-btn.active {
+      background: rgba(240, 192, 64, 0.12);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .maint-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-top: 3px solid var(--accent);
+      border-radius: 6px;
+      padding: 1.8rem;
+    }
+
     #entry-lock {
       position: fixed;
       inset: 0;
@@ -775,6 +810,7 @@
 
   <div class="tabs">
     <button class="tab-btn active" id="tab-qr-btn" onclick="switchTab('qr',this)">🚗 Araçlar</button>
+    <button class="tab-btn" id="tab-maint-btn" onclick="switchTab('maint',this)">🧼 Yıkama & Bakım</button>
     <button class="tab-btn" id="tab-records-btn" style="display:none;" onclick="switchTab('records',this)">📋 Kayıtlar</button>
     <button class="tab-btn" id="tab-dash-btn" style="display:none;" onclick="switchTab('dash',this)">📊 Analiz</button>
     <button class="tab-btn" id="tab-admin-btn" style="display:none;" onclick="switchTab('admin',this)">🔒 Admin
@@ -789,6 +825,84 @@
         style="margin-left:0;width:220px;">
     </div>
     <div class="qr-grid" id="qr-grid"></div>
+  </div>
+
+  <div class="page" id="page-maint">
+    <div class="maint-container" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:1.5rem; align-items: start;">
+      
+      <!-- Yeni Kayıt Giriş Formu -->
+      <div class="maint-card">
+        <h2>🧼 YIKAMA & BAKIM</h2>
+        <div class="modal-sub" style="margin-bottom: 1rem;">KAYIT GİRİŞ FORMU</div>
+        
+        <div class="form-row full">
+          <div class="form-group">
+            <label>İŞLEM TÜRÜ</label>
+            <div class="btn-group-toggle">
+              <button type="button" class="toggle-btn active" id="btn-type-wash" onclick="setMaintType('Araç Yıkama')">🧼 ARAÇ YIKAMA</button>
+              <button type="button" class="toggle-btn" id="btn-type-tire" onclick="setMaintType('Lastik Değişimi')">🛞 LASTİK DEĞİŞİMİ</button>
+            </div>
+            <input type="hidden" id="maint-type" value="Araç Yıkama">
+          </div>
+        </div>
+        
+        <div class="form-row">
+          <div class="form-group">
+            <label>PLAKA SEÇİN</label>
+            <select id="maint-plate">
+              <!-- Dinamik doldurulacak -->
+            </select>
+          </div>
+          <div class="form-group">
+            <label>TARİH</label>
+            <input type="date" id="maint-date">
+          </div>
+        </div>
+        
+        <div class="form-row full">
+          <div class="form-group">
+            <label>YIKATAN / YAPAN PERSONEL</label>
+            <input type="text" id="maint-driver" placeholder="İsim soyisim giriniz...">
+          </div>
+        </div>
+        
+        <div class="form-row full">
+          <div class="form-group">
+            <label>NOTLAR / AÇIKLAMA (OPSİYONEL)</label>
+            <textarea id="maint-notes" placeholder="Ek açıklama giriniz..." rows="3"></textarea>
+          </div>
+        </div>
+        
+        <div style="margin-top:1.2rem;">
+          <button class="btn-primary" style="width:100%; display:block;" onclick="submitMaintenance()">✅ KAYDET</button>
+        </div>
+      </div>
+      
+      <!-- Raporlar / Geçmiş Listesi (Sadece Admin Görebilir) -->
+      <div class="maint-card" id="maint-admin-panel" style="display:none;">
+        <div class="table-controls" style="margin-top:0;">
+          <h2>📋 GEÇMİŞ KAYITLAR</h2>
+          <span class="count-badge" id="maint-count" style="margin-left: 0.5rem;">0</span>
+          <input class="search-box" id="maint-search-box" placeholder="Arama..." oninput="renderMaintenanceList()" style="width:160px; margin-left:auto;">
+        </div>
+        <div class="tbl-wrap" style="max-height: 420px; overflow-y: auto; margin-top: 1rem;">
+          <table class="rtbl">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Tarih</th>
+                <th>Plaka</th>
+                <th>İşlem</th>
+                <th>Personel</th>
+                <th>Notlar</th>
+              </tr>
+            </thead>
+            <tbody id="maint-body"></tbody>
+          </table>
+        </div>
+      </div>
+      
+    </div>
   </div>
 
   <div class="page" id="page-records">
@@ -964,7 +1078,7 @@
     const HASH_ADMIN = '0a0e64b913d0db658973fda803e2f8eb936d9376675fdc3512139ce55cbedebf';
     const HASH_ENTRY = 'fca13bfeed47a54af1e745f6fa45da1f8df39fc43f98498a44700efad40c4e5c';
 
-    let RECORDS = [], VEHICLES = [], DRIVERS = [];
+    let RECORDS = [], VEHICLES = [], DRIVERS = [], MAINTENANCE_RECORDS = [];
     let currentOffice = 'Tümü';
     let adminLoggedIn = false;
     let activeVehicle = null, activeRecord = null;
@@ -1032,16 +1146,32 @@
           RECORDS = d.records || [];
           VEHICLES = d.vehicles || [];
           DRIVERS = d.drivers || [];
+          MAINTENANCE_RECORDS = d.maintenanceRecords || [];
           setSync('ok', 'Güncel');
           if (!window.dashFiltersInitialized && adminLoggedIn) { renderDashFiltersInit(); window.dashFiltersInitialized = true; }
-          renderQR(); renderTable(); if (adminLoggedIn) { renderAdmin(); if(document.getElementById('page-dash').classList.contains('active')) renderDashboard(); }
+          renderQR();
+          renderTable();
+          if (document.getElementById('page-maint').classList.contains('active')) {
+            renderMaintenance();
+          }
+          if (adminLoggedIn) {
+            renderAdmin();
+            if(document.getElementById('page-dash').classList.contains('active')) renderDashboard();
+          }
           
           const urlParams = new URLSearchParams(window.location.search);
           const pPlate = urlParams.get('p');
           if (pPlate && !window.qrTriggered) {
             window.qrTriggered = true;
             const vehicle = VEHICLES.find(v => v.Plaka === pPlate);
-            if (vehicle) openAction(vehicle.Plaka);
+            if (vehicle) {
+              const isTracked = vehicle.Takip !== 'HAYIR' && vehicle.Takip !== 'False' && vehicle.Takip !== false && vehicle.Takip !== 'no';
+              if (isTracked) {
+                openAction(vehicle.Plaka);
+              } else {
+                alert('Hata: Bu araç sefer takibi dışındadır.');
+              }
+            }
             window.history.replaceState({}, document.title, location.pathname);
           }
         }
@@ -1051,7 +1181,10 @@
     function renderQR() {
       const grid = document.getElementById('qr-grid');
       const q = (document.getElementById('qr-search').value || '').toLowerCase();
-      let filtered = VEHICLES.filter(v => v.Plaka.toLowerCase().includes(q) || v.Model.toLowerCase().includes(q));
+      let filtered = VEHICLES.filter(v => {
+        const isTracked = v.Takip !== 'HAYIR' && v.Takip !== 'False' && v.Takip !== false && v.Takip !== 'no';
+        return isTracked && (v.Plaka.toLowerCase().includes(q) || v.Model.toLowerCase().includes(q));
+      });
       grid.innerHTML = '';
       filtered.forEach(v => {
         const rec = RECORDS.find(r => r.Plaka === v.Plaka && r.Durum === 'AÇIK');
@@ -1153,11 +1286,179 @@
       }).join('');
     }
 
-    function switchTab(t, b) { document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active')); b.classList.add('active'); document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.getElementById('page-' + t).classList.add('active'); if (t === 'admin') renderAdmin(); if (t === 'dash' && window.dashFiltersInitialized) renderDashboard(); }
+    function switchTab(t, b) {
+      document.querySelectorAll('.tab-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+      document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+      document.getElementById('page-' + t).classList.add('active');
+      if (t === 'admin') renderAdmin();
+      if (t === 'dash' && window.dashFiltersInitialized) renderDashboard();
+      if (t === 'maint') renderMaintenance();
+    }
     function closeOverlay(id) { document.getElementById(id).classList.remove('open'); }
     async function checkAdminLogin() { const pw = document.getElementById('admin-pw').value; const h = await sha256(pw); if (h === HASH_ADMIN) { adminLoggedIn = true; window.dashFiltersInitialized = false; document.body.classList.add('admin-mode'); closeOverlay('m-admin-login'); document.getElementById('tab-admin-btn').style.display = ''; document.getElementById('tab-records-btn').style.display = ''; document.getElementById('tab-dash-btn').style.display = ''; renderDashFiltersInit(); window.dashFiltersInitialized = true; switchTab('admin', document.getElementById('tab-admin-btn')); } else { document.getElementById('login-err').textContent = 'Hatalı!'; } }
     function toggleAdmin() { if (adminLoggedIn) switchTab('admin', document.getElementById('tab-admin-btn')); else document.getElementById('m-admin-login').classList.add('open'); }
     function renderAdmin() { const b = document.getElementById('admin-rec-body'); b.innerHTML = RECORDS.slice(0, 50).map((r, i) => `<tr><td>${i + 1}</td><td>${r.Tarih}</td><td>${r.Plaka}</td><td>${r.Sürücü}</td><td>${r.Durum}</td><td><button class="btn-edit" onclick="alert('Sheet üzerinden düzenleyin')">✏</button></td></tr>`).join(''); }
+
+    // --- WASH & TIRE MAINTENANCE LOGIC ---
+    function getTodayDateString() {
+      const d = new Date();
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+
+    function showToast(msg, type = 'ok') {
+      const t = document.getElementById('toast');
+      if (!t) return;
+      t.textContent = msg;
+      t.className = 'toast show ' + type;
+      setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    function setMaintType(type) {
+      document.getElementById('maint-type').value = type;
+      const btnWash = document.getElementById('btn-type-wash');
+      const btnTire = document.getElementById('btn-type-tire');
+      if (type === 'Araç Yıkama') {
+        btnWash.classList.add('active');
+        btnTire.classList.remove('active');
+      } else {
+        btnWash.classList.remove('active');
+        btnTire.classList.add('active');
+      }
+    }
+
+    function populateMaintPlates() {
+      const select = document.getElementById('maint-plate');
+      if (!select) return;
+      
+      const tracked = VEHICLES.filter(v => v.Takip !== 'HAYIR' && v.Takip !== 'False' && v.Takip !== false && v.Takip !== 'no');
+      const untracked = VEHICLES.filter(v => v.Takip === 'HAYIR' || v.Takip === 'False' || v.Takip === false || v.Takip === 'no');
+      
+      let html = '';
+      if (untracked.length > 0) {
+        html += `<optgroup label="Diğer Araçlar (Kayıtlı Olmayan)">`;
+        untracked.forEach(v => {
+          html += `<option value="${v.Plaka}">${v.Plaka} - ${v.Model || ''}</option>`;
+        });
+        html += `</optgroup>`;
+      }
+      if (tracked.length > 0) {
+        html += `<optgroup label="Kayıtlı Araçlar">`;
+        tracked.forEach(v => {
+          html += `<option value="${v.Plaka}">${v.Plaka} - ${v.Model || ''}</option>`;
+        });
+        html += `</optgroup>`;
+      }
+      select.innerHTML = html;
+    }
+
+    function renderMaintenance() {
+      populateMaintPlates();
+      
+      const dateInput = document.getElementById('maint-date');
+      if (dateInput && !dateInput.value) {
+        dateInput.value = getTodayDateString();
+      }
+      
+      const driverInput = document.getElementById('maint-driver');
+      if (driverInput && !driverInput.value) {
+        driverInput.value = localStorage.getItem('vts_driver_name') || '';
+      }
+      
+      const adminPanel = document.getElementById('maint-admin-panel');
+      if (adminPanel) {
+        if (adminLoggedIn) {
+          adminPanel.style.display = 'block';
+          renderMaintenanceList();
+        } else {
+          adminPanel.style.display = 'none';
+        }
+      }
+    }
+
+    function renderMaintenanceList() {
+      const body = document.getElementById('maint-body');
+      if (!body) return;
+      
+      const q = (document.getElementById('maint-search-box').value || '').toLowerCase();
+      const f = MAINTENANCE_RECORDS.filter(r => 
+        (r.Plaka || '').toLowerCase().includes(q) || 
+        (r.Personel || '').toLowerCase().includes(q) || 
+        (r['İşlem Türü'] || '').toLowerCase().includes(q) ||
+        (r.Notlar || '').toLowerCase().includes(q)
+      );
+      
+      document.getElementById('maint-count').textContent = f.length;
+      
+      if (f.length === 0) {
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:2rem;">Kayıt bulunamadı.</td></tr>';
+        return;
+      }
+      
+      const sorted = [...f].sort((a, b) => b.ID - a.ID);
+      
+      body.innerHTML = sorted.map((r, i) => {
+        return `<tr>
+          <td>${i + 1}</td>
+          <td>${r.Tarih || ''}</td>
+          <td class="cell-plate">${r.Plaka || ''}</td>
+          <td><span class="${r['İşlem Türü'] === 'Lastik Değişimi' ? 'badge-closed' : 'badge-open'}">${r['İşlem Türü'] || ''}</span></td>
+          <td class="cell-driver">${r.Personel || ''}</td>
+          <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${r.Notlar || ''}">${r.Notlar || ''}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function submitMaintenance() {
+      const type = document.getElementById('maint-type').value;
+      const plate = document.getElementById('maint-plate').value;
+      const date = document.getElementById('maint-date').value;
+      const driver = document.getElementById('maint-driver').value.trim();
+      const notes = document.getElementById('maint-notes').value.trim();
+      
+      if (!plate) {
+        alert('Lütfen bir plaka seçin!');
+        return;
+      }
+      if (!date) {
+        alert('Lütfen bir tarih seçin!');
+        return;
+      }
+      if (!driver) {
+        alert('Lütfen personel/sürücü ismini girin!');
+        return;
+      }
+      
+      const btn = document.querySelector('#page-maint button.btn-primary');
+      if (btn) btn.disabled = true;
+      
+      const payload = {
+        action: 'log_maintenance',
+        id: Date.now(),
+        type: type,
+        plate: plate,
+        date: date,
+        driver: driver,
+        notes: notes,
+        deviceId: getDeviceId()
+      };
+      
+      localStorage.setItem('vts_driver_name', driver);
+      
+      try {
+        await send(payload);
+        showToast('Kayıt başarıyla kaydedildi.', 'ok');
+        document.getElementById('maint-notes').value = '';
+        await loadRecords();
+      } catch (err) {
+        showToast('Hata: Kayıt gönderilemedi!', 'err');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
     function exportCSV() { alert('Sheet üzerinden indirin'); }
 
     // --- DASHBOARD LOGIC ---
