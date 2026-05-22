@@ -867,7 +867,20 @@
             </select>
           </div>
         </div>
-        
+        <div class="form-row">
+          <div class="form-group">
+            <label>ÜCRET (TL)</label>
+            <input type="number" id="maint-price" placeholder="0" min="0">
+          </div>
+          <div class="form-group">
+            <label>FİRMA / SERVİS</label>
+            <select id="maint-company" onchange="onMaintCompanyChange()">
+              <!-- Dinamik doldurulacak -->
+            </select>
+            <input type="text" id="maint-company-other" placeholder="Firma Adı Girin..." style="display: none; margin-top: 0.5rem;">
+          </div>
+        </div>
+
         <div class="form-row full">
           <div class="form-group">
             <label>NOTLAR / AÇIKLAMA (OPSİYONEL)</label>
@@ -896,6 +909,8 @@
                 <th>Plaka</th>
                 <th>İşlem</th>
                 <th>Personel</th>
+                <th>Ücret</th>
+                <th>Firma</th>
                 <th>Notlar</th>
               </tr>
             </thead>
@@ -904,6 +919,39 @@
         </div>
       </div>
       
+    </div>
+
+    <!-- Masraf Analizi Paneli (Sadece Admin Görebilir) -->
+    <div class="maint-card" id="maint-expense-panel" style="display:none; margin-top:1.5rem;">
+      <h2 style="margin-bottom:0.4rem;">📊 MASRAF ANALİZİ</h2>
+      <div class="modal-sub" style="margin-bottom: 1.2rem;">ARAÇ VE İŞLEM BAZLI HARCAMA ÖZETLERİ</div>
+      
+      <!-- Özet Kartları -->
+      <div class="dash" style="padding:0; margin-bottom:1.5rem;">
+        <div class="cards" id="maint-expense-cards" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+          <!-- Dinamik doldurulacak -->
+        </div>
+      </div>
+      
+      <!-- Araç Bazlı Detay Tablosu -->
+      <h3 class="section-title" style="margin-bottom:0.75rem; font-size:14px; font-family:'IBM Plex Sans',sans-serif; color:var(--muted); letter-spacing:1px;">PLAKA BAZINDA HARCAMALAR</h3>
+      <div class="tbl-wrap" style="max-height: 400px; overflow-y: auto;">
+        <table class="rtbl">
+          <thead>
+            <tr>
+              <th>Plaka</th>
+              <th style="text-align: center;">Yıkama Sayısı</th>
+              <th style="text-align: right;">Yıkama Masrafı</th>
+              <th style="text-align: center;">Lastik Sayısı</th>
+              <th style="text-align: right;">Lastik Masrafı</th>
+              <th style="text-align: right; color:var(--accent2);">Toplam Masraf</th>
+            </tr>
+          </thead>
+          <tbody id="maint-expense-body">
+            <!-- Dinamik doldurulacak -->
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -1080,7 +1128,7 @@
     const HASH_ADMIN = '0a0e64b913d0db658973fda803e2f8eb936d9376675fdc3512139ce55cbedebf';
     const HASH_ENTRY = 'fca13bfeed47a54af1e745f6fa45da1f8df39fc43f98498a44700efad40c4e5c';
 
-    let RECORDS = [], VEHICLES = [], DRIVERS = [], MAINTENANCE_RECORDS = [];
+    let RECORDS = [], VEHICLES = [], DRIVERS = [], MAINTENANCE_RECORDS = [], COMPANIES = [];
     let currentOffice = 'Tümü';
     let adminLoggedIn = false;
     let activeVehicle = null, activeRecord = null;
@@ -1149,6 +1197,7 @@
           VEHICLES = d.vehicles || [];
           DRIVERS = d.drivers || [];
           MAINTENANCE_RECORDS = d.maintenanceRecords || [];
+          COMPANIES = d.companies || [];
           setSync('ok', 'Güncel');
           if (!window.dashFiltersInitialized && adminLoggedIn) { renderDashFiltersInit(); window.dashFiltersInitialized = true; }
           renderQR();
@@ -1330,6 +1379,7 @@
         btnWash.classList.remove('active');
         btnTire.classList.add('active');
       }
+      populateMaintCompanies(type);
     }
 
     function populateMaintPlates() {
@@ -1378,9 +1428,81 @@
       }
     }
 
+    function populateMaintCompanies(type) {
+      const select = document.getElementById('maint-company');
+      if (!select) return;
+      
+      const filtered = COMPANIES.filter(c => c['Hizmet Türü'] === type);
+      
+      let html = '';
+      if (filtered.length === 0) {
+        html = '<option value="Diğer">✍️ Diğer (Elle Gir)</option>';
+      } else {
+        filtered.forEach(c => {
+          html += `<option value="${c['Firma Adı']}">${c['Firma Adı']}</option>`;
+        });
+        html += '<option value="Diğer">✍️ Diğer (Elle Gir)</option>';
+      }
+      select.innerHTML = html;
+      
+      const otherInput = document.getElementById('maint-company-other');
+      if (otherInput) {
+        otherInput.value = '';
+        otherInput.style.display = 'none';
+      }
+      
+      // Find the default company (Varsayılan = Evet)
+      let defaultCompany = filtered.find(c => {
+        const val = (c['Varsayılan'] || '').toString().trim().toLowerCase();
+        return val === 'evet' || val === 'yes' || val === 'true';
+      });
+      
+      if (!defaultCompany && filtered.length > 0) {
+        defaultCompany = filtered[0];
+      }
+      
+      if (defaultCompany) {
+        select.value = defaultCompany['Firma Adı'];
+        document.getElementById('maint-price').value = defaultCompany['Ücret'] !== undefined ? defaultCompany['Ücret'] : '';
+      } else {
+        select.value = 'Diğer';
+        if (otherInput) otherInput.style.display = 'block';
+        document.getElementById('maint-price').value = '';
+      }
+    }
+
+    function onMaintCompanyChange() {
+      const select = document.getElementById('maint-company');
+      if (!select) return;
+      const selectedName = select.value;
+      const otherInput = document.getElementById('maint-company-other');
+      
+      if (selectedName === 'Diğer') {
+        if (otherInput) {
+          otherInput.style.display = 'block';
+          otherInput.value = '';
+          otherInput.focus();
+        }
+        document.getElementById('maint-price').value = '';
+      } else {
+        if (otherInput) {
+          otherInput.style.display = 'none';
+          otherInput.value = '';
+        }
+        const type = document.getElementById('maint-type').value;
+        const company = COMPANIES.find(c => c['Firma Adı'] === selectedName && c['Hizmet Türü'] === type);
+        if (company) {
+          document.getElementById('maint-price').value = company['Ücret'] !== undefined ? company['Ücret'] : '';
+        }
+      }
+    }
+
     function renderMaintenance() {
       populateMaintPlates();
       populateMaintDrivers();
+      
+      const activeType = document.getElementById('maint-type').value || 'Araç Yıkama';
+      populateMaintCompanies(activeType);
       
       const dateInput = document.getElementById('maint-date');
       if (dateInput && !dateInput.value) {
@@ -1396,6 +1518,16 @@
           adminPanel.style.display = 'none';
         }
       }
+
+      const expensePanel = document.getElementById('maint-expense-panel');
+      if (expensePanel) {
+        if (adminLoggedIn) {
+          expensePanel.style.display = 'block';
+          renderExpenseAnalysis();
+        } else {
+          expensePanel.style.display = 'none';
+        }
+      }
     }
 
     function renderMaintenanceList() {
@@ -1407,26 +1539,119 @@
         (r.Plaka || '').toLowerCase().includes(q) || 
         (r.Personel || '').toLowerCase().includes(q) || 
         (r['İşlem Türü'] || '').toLowerCase().includes(q) ||
-        (r.Notlar || '').toLowerCase().includes(q)
+        (r.Notlar || '').toLowerCase().includes(q) ||
+        (r['Yıkama Firması'] || '').toLowerCase().includes(q)
       );
       
       document.getElementById('maint-count').textContent = f.length;
       
       if (f.length === 0) {
-        body.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:2rem;">Kayıt bulunamadı.</td></tr>';
+        body.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:2rem;">Kayıt bulunamadı.</td></tr>';
         return;
       }
       
       const sorted = [...f].sort((a, b) => b.ID - a.ID);
       
       body.innerHTML = sorted.map((r, i) => {
+        const ucret = r.Ücret ? Number(r.Ücret).toLocaleString('tr-TR') + ' TL' : '—';
+        const firma = r['Yıkama Firması'] || '—';
         return `<tr>
           <td>${i + 1}</td>
           <td>${r.Tarih || ''}</td>
           <td class="cell-plate">${r.Plaka || ''}</td>
           <td><span class="${r['İşlem Türü'] === 'Lastik Değişimi' ? 'badge-closed' : 'badge-open'}">${r['İşlem Türü'] || ''}</span></td>
           <td class="cell-driver">${r.Personel || ''}</td>
+          <td style="font-family: 'IBM Plex Mono', monospace; text-align: right;">${ucret}</td>
+          <td>${firma}</td>
           <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${r.Notlar || ''}">${r.Notlar || ''}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    function renderExpenseAnalysis() {
+      const cardsContainer = document.getElementById('maint-expense-cards');
+      const body = document.getElementById('maint-expense-body');
+      if (!cardsContainer || !body) return;
+      
+      let totalExpense = 0;
+      let totalWashExpense = 0;
+      let totalTireExpense = 0;
+      let washCount = 0;
+      let tireCount = 0;
+      
+      const vehicleStats = {};
+      
+      MAINTENANCE_RECORDS.forEach(r => {
+        const ucret = parseFloat(r.Ücret) || 0;
+        const type = r['İşlem Türü'] || '';
+        const plate = r.Plaka || 'Bilinmeyen';
+        
+        totalExpense += ucret;
+        if (type === 'Araç Yıkama') {
+          totalWashExpense += ucret;
+          washCount++;
+        } else if (type === 'Lastik Değişimi') {
+          totalTireExpense += ucret;
+          tireCount++;
+        }
+        
+        if (!vehicleStats[plate]) {
+          vehicleStats[plate] = {
+            washCount: 0,
+            washExpense: 0,
+            tireCount: 0,
+            tireExpense: 0,
+            totalExpense: 0
+          };
+        }
+        
+        vehicleStats[plate].totalExpense += ucret;
+        if (type === 'Araç Yıkama') {
+          vehicleStats[plate].washCount++;
+          vehicleStats[plate].washExpense += ucret;
+        } else if (type === 'Lastik Değişimi') {
+          vehicleStats[plate].tireCount++;
+          vehicleStats[plate].tireExpense += ucret;
+        }
+      });
+      
+      // Render cards
+      cardsContainer.innerHTML = `
+        <div class="card">
+          <div class="label">Toplam Harcama</div>
+          <div class="val" style="color: var(--accent2);">${totalExpense.toLocaleString('tr-TR')} TL</div>
+          <div class="sub">${washCount + tireCount} işlem</div>
+        </div>
+        <div class="card">
+          <div class="label">Toplam Yıkama Masrafı</div>
+          <div class="val" style="color: var(--accent);">${totalWashExpense.toLocaleString('tr-TR')} TL</div>
+          <div class="sub">${washCount} yıkama</div>
+        </div>
+        <div class="card">
+          <div class="label">Toplam Lastik Masrafı</div>
+          <div class="val" style="color: var(--danger);">${totalTireExpense.toLocaleString('tr-TR')} TL</div>
+          <div class="sub">${tireCount} lastik değişimi</div>
+        </div>
+      `;
+      
+      // Render breakdown table
+      const sortedStats = Object.entries(vehicleStats)
+        .map(([plate, stats]) => ({ plate, ...stats }))
+        .sort((a, b) => b.totalExpense - a.totalExpense);
+        
+      if (sortedStats.length === 0) {
+        body.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:2rem;">Kayıtlı harcama bulunamadı.</td></tr>';
+        return;
+      }
+      
+      body.innerHTML = sortedStats.map(s => {
+        return `<tr>
+          <td class="cell-plate">${s.plate}</td>
+          <td style="text-align: center;">${s.washCount}</td>
+          <td style="text-align: right; font-family: 'IBM Plex Mono', monospace;">${s.washExpense ? s.washExpense.toLocaleString('tr-TR') + ' TL' : '—'}</td>
+          <td style="text-align: center;">${s.tireCount}</td>
+          <td style="text-align: right; font-family: 'IBM Plex Mono', monospace;">${s.tireExpense ? s.tireExpense.toLocaleString('tr-TR') + ' TL' : '—'}</td>
+          <td style="text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: var(--accent2);">${s.totalExpense ? s.totalExpense.toLocaleString('tr-TR') + ' TL' : '0 TL'}</td>
         </tr>`;
       }).join('');
     }
@@ -1436,6 +1661,16 @@
       const plate = document.getElementById('maint-plate').value;
       const date = document.getElementById('maint-date').value;
       const driver = document.getElementById('maint-driver').value.trim();
+      const price = document.getElementById('maint-price').value.trim();
+      
+      const companySelect = document.getElementById('maint-company').value.trim();
+      const companyOther = document.getElementById('maint-company-other').value.trim();
+      
+      if (companySelect === 'Diğer' && !companyOther) {
+        alert('Lütfen firma adını girin!');
+        return;
+      }
+      const company = companySelect === 'Diğer' ? companyOther : companySelect;
       const notes = document.getElementById('maint-notes').value.trim();
       
       if (!plate) {
@@ -1461,6 +1696,8 @@
         plate: plate,
         date: date,
         driver: driver,
+        price: price ? Number(price) : 0,
+        company: company,
         notes: notes,
         deviceId: getDeviceId()
       };
@@ -1470,6 +1707,13 @@
       try {
         await send(payload);
         showToast('Kayıt başarıyla kaydedildi.', 'ok');
+        document.getElementById('maint-price').value = '';
+        document.getElementById('maint-company').value = '';
+        const otherInput = document.getElementById('maint-company-other');
+        if (otherInput) {
+          otherInput.value = '';
+          otherInput.style.display = 'none';
+        }
         document.getElementById('maint-notes').value = '';
         await loadRecords();
       } catch (err) {
