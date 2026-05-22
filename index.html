@@ -1343,14 +1343,14 @@
       if (untracked.length > 0) {
         html += `<optgroup label="Diğer Araçlar (Kayıtlı Olmayan)">`;
         untracked.forEach(v => {
-          html += `<option value="${v.Plaka}">${v.Plaka} - ${v.Model || ''}</option>`;
+          html += `<option value="${v.Plaka}">${v.Plaka}</option>`;
         });
         html += `</optgroup>`;
       }
       if (tracked.length > 0) {
         html += `<optgroup label="Kayıtlı Araçlar">`;
         tracked.forEach(v => {
-          html += `<option value="${v.Plaka}">${v.Plaka} - ${v.Model || ''}</option>`;
+          html += `<option value="${v.Plaka}">${v.Plaka}</option>`;
         });
         html += `</optgroup>`;
       }
