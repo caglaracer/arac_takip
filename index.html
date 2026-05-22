@@ -862,7 +862,9 @@
         <div class="form-row full">
           <div class="form-group">
             <label>YIKATAN / YAPAN PERSONEL</label>
-            <input type="text" id="maint-driver" placeholder="İsim soyisim giriniz...">
+            <select id="maint-driver">
+              <!-- Dinamik doldurulacak -->
+            </select>
           </div>
         </div>
         
@@ -1355,17 +1357,38 @@
       select.innerHTML = html;
     }
 
+    function populateMaintDrivers() {
+      const select = document.getElementById('maint-driver');
+      if (!select) return;
+      
+      let html = '';
+      const driverNames = DRIVERS.map(d => d['Ad Soyad']).filter(Boolean);
+      
+      // Her halükarda listede Çağrı Deniz olsun
+      if (!driverNames.includes('Çağrı Deniz')) {
+        driverNames.unshift('Çağrı Deniz');
+      }
+      
+      driverNames.forEach(name => {
+        html += `<option value="${name}">${name}</option>`;
+      });
+      select.innerHTML = html;
+      
+      const savedDriver = localStorage.getItem('vts_driver_name');
+      if (savedDriver && driverNames.includes(savedDriver)) {
+        select.value = savedDriver;
+      } else if (driverNames.includes('Çağrı Deniz')) {
+        select.value = 'Çağrı Deniz';
+      }
+    }
+
     function renderMaintenance() {
       populateMaintPlates();
+      populateMaintDrivers();
       
       const dateInput = document.getElementById('maint-date');
       if (dateInput && !dateInput.value) {
         dateInput.value = getTodayDateString();
-      }
-      
-      const driverInput = document.getElementById('maint-driver');
-      if (driverInput && !driverInput.value) {
-        driverInput.value = localStorage.getItem('vts_driver_name') || '';
       }
       
       const adminPanel = document.getElementById('maint-admin-panel');
