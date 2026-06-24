@@ -581,6 +581,15 @@
       border-radius: 2px;
     }
 
+    .badge-danger {
+      background: rgba(224, 85, 85, .12);
+      color: var(--danger);
+      border: 1px solid var(--danger);
+      font-size: .65rem;
+      padding: .12rem .45rem;
+      border-radius: 2px;
+    }
+
     .empty-state {
       text-align: center;
       padding: 4rem 2rem;
@@ -873,6 +882,16 @@
             <input type="number" id="maint-price" placeholder="0" min="0">
           </div>
           <div class="form-group">
+            <label>ÖDEME DURUMU</label>
+            <select id="maint-payment-status">
+              <option value="Ödendi">🟢 Ödendi</option>
+              <option value="Ödenecek">🔴 Ödenecek</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="form-row full">
+          <div class="form-group">
             <label>FİRMA / SERVİS</label>
             <select id="maint-company" onchange="onMaintCompanyChange()">
               <!-- Dinamik doldurulacak -->
@@ -911,6 +930,7 @@
                 <th>Personel</th>
                 <th>Ücret</th>
                 <th>Firma</th>
+                <th>Ödeme</th>
                 <th>Notlar</th>
               </tr>
             </thead>
@@ -1540,13 +1560,14 @@
         (r.Personel || '').toLowerCase().includes(q) || 
         (r['İşlem Türü'] || '').toLowerCase().includes(q) ||
         (r.Notlar || '').toLowerCase().includes(q) ||
-        (r['Yıkama Firması'] || '').toLowerCase().includes(q)
+        (r['Yıkama Firması'] || '').toLowerCase().includes(q) ||
+        (r['Ödeme Durumu'] || '').toLowerCase().includes(q)
       );
       
       document.getElementById('maint-count').textContent = f.length;
       
       if (f.length === 0) {
-        body.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:2rem;">Kayıt bulunamadı.</td></tr>';
+        body.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--muted); padding:2rem;">Kayıt bulunamadı.</td></tr>';
         return;
       }
       
@@ -1555,6 +1576,10 @@
       body.innerHTML = sorted.map((r, i) => {
         const ucret = r.Ücret ? Number(r.Ücret).toLocaleString('tr-TR') + ' TL' : '—';
         const firma = r['Yıkama Firması'] || '—';
+        const status = r['Ödeme Durumu'] || 'Ödendi';
+        const statusBadge = status === 'Ödenecek' 
+          ? `<span class="badge-danger">🔴 Ödenecek</span>` 
+          : `<span class="badge-open">🟢 Ödendi</span>`;
         return `<tr>
           <td>${i + 1}</td>
           <td>${r.Tarih || ''}</td>
@@ -1563,6 +1588,7 @@
           <td class="cell-driver">${r.Personel || ''}</td>
           <td style="font-family: 'IBM Plex Mono', monospace; text-align: right;">${ucret}</td>
           <td>${firma}</td>
+          <td>${statusBadge}</td>
           <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${r.Notlar || ''}">${r.Notlar || ''}</td>
         </tr>`;
       }).join('');
@@ -1578,6 +1604,7 @@
       let totalTireExpense = 0;
       let washCount = 0;
       let tireCount = 0;
+      let unpaidExpense = 0;
       
       const vehicleStats = {};
       
@@ -1585,8 +1612,13 @@
         const ucret = parseFloat(r.Ücret) || 0;
         const type = r['İşlem Türü'] || '';
         const plate = r.Plaka || 'Bilinmeyen';
+        const paymentStatus = r['Ödeme Durumu'] || 'Ödendi';
         
         totalExpense += ucret;
+        if (paymentStatus === 'Ödenecek') {
+          unpaidExpense += ucret;
+        }
+        
         if (type === 'Araç Yıkama') {
           totalWashExpense += ucret;
           washCount++;
@@ -1632,6 +1664,11 @@
           <div class="val" style="color: var(--danger);">${totalTireExpense.toLocaleString('tr-TR')} TL</div>
           <div class="sub">${tireCount} lastik değişimi</div>
         </div>
+        <div class="card">
+          <div class="label">Bekleyen Ödeme</div>
+          <div class="val" style="color: var(--danger);">${unpaidExpense.toLocaleString('tr-TR')} TL</div>
+          <div class="sub">Ödenecek bekleyen tutar</div>
+        </div>
       `;
       
       // Render breakdown table
@@ -1662,6 +1699,7 @@
       const date = document.getElementById('maint-date').value;
       const driver = document.getElementById('maint-driver').value.trim();
       const price = document.getElementById('maint-price').value.trim();
+      const paymentStatus = document.getElementById('maint-payment-status').value;
       
       const companySelect = document.getElementById('maint-company').value.trim();
       const companyOther = document.getElementById('maint-company-other').value.trim();
@@ -1698,6 +1736,7 @@
         driver: driver,
         price: price ? Number(price) : 0,
         company: company,
+        paymentStatus: paymentStatus,
         notes: notes,
         deviceId: getDeviceId()
       };
@@ -1709,6 +1748,7 @@
         showToast('Kayıt başarıyla kaydedildi.', 'ok');
         document.getElementById('maint-price').value = '';
         document.getElementById('maint-company').value = '';
+        document.getElementById('maint-payment-status').value = 'Ödendi';
         const otherInput = document.getElementById('maint-company-other');
         if (otherInput) {
           otherInput.value = '';
