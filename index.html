@@ -1309,6 +1309,10 @@
       if (!window.selectedDriver) { alert('Sürücü seçin!'); return; }
       const km = document.getElementById('mc-km').value; if (!km) { alert('KM girin!'); return; }
       if (Number(km) > 999999) { alert('Hata: Çıkış KM en fazla 999999 olabilir!'); return; }
+      
+      const btn = document.getElementById('mc-sub-btn');
+      if (btn) btn.disabled = true;
+      
       const payload = {
         action: 'checkout', id: Date.now(), plate: activeVehicle.Plaka, model: activeVehicle.Model,
         driver: window.selectedDriver, checkoutKm: km, checkoutTime: new Date().toLocaleTimeString('tr-TR'),
@@ -1316,7 +1320,16 @@
         route: document.getElementById('mc-route').value, checkoutDevice: getDeviceId()
       };
       localStorage.setItem('vts_driver_name', window.selectedDriver);
-      await send(payload); closeOverlay('m-checkout'); loadRecords();
+      
+      try {
+        await send(payload);
+        closeOverlay('m-checkout');
+        loadRecords();
+      } catch (err) {
+        alert('Hata oluştu, lütfen tekrar deneyin.');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
     }
 
     function openReturn() {
@@ -1335,8 +1348,19 @@
       if (diff > 100) {
         if (!confirm('DİKKAT: Toplam ' + diff + ' KM yol yaptığınız görünüyor. Değeri doğru girdiğinize emin misiniz?\n\nÇıkış KM: ' + activeRecord['Çıkış KM'] + '\nDönüş KM: ' + km)) return;
       }
-      await send({ action: 'return', id: activeRecord.ID, returnKm: km, returnTime: new Date().toLocaleTimeString('tr-TR'), returnDevice: getDeviceId(), returnDriverName: localStorage.getItem('vts_driver_name') || '' });
-      closeOverlay('m-return'); loadRecords();
+      
+      const btn = document.getElementById('mr-sub-btn');
+      if (btn) btn.disabled = true;
+      
+      try {
+        await send({ action: 'return', id: activeRecord.ID, returnKm: km, returnTime: new Date().toLocaleTimeString('tr-TR'), returnDevice: getDeviceId(), returnDriverName: localStorage.getItem('vts_driver_name') || '' });
+        closeOverlay('m-return');
+        loadRecords();
+      } catch (err) {
+        alert('Hata oluştu, lütfen tekrar deneyin.');
+      } finally {
+        if (btn) btn.disabled = false;
+      }
     }
 
     async function send(p) {
