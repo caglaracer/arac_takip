@@ -1172,8 +1172,9 @@
       <h2>ARAÇ DÖNÜŞ</h2>
       <div class="modal-sub" id="mr-sub"></div>
       <div class="stamp-box" id="mr-stamp"></div>
+      <div id="mr-returner-info" style="display:none; font-size:.82rem; background:rgba(64,212,160,.08); border:1px solid var(--accent2); border-radius:4px; padding:.6rem .8rem; margin-bottom:1rem; line-height:1.4;"></div>
       <div class="form-row">
-        <div class="form-group"><label>Sürücü</label><input type="text" id="mr-drv" readonly></div>
+        <div class="form-group"><label>Zimmetli Sürücü</label><input type="text" id="mr-drv" readonly></div>
         <div class="form-group"><label>Dönüş KM</label><input type="number" id="mr-km" max="999999" oninput="if(value.length>6) value=value.slice(0,6)"></div>
       </div>
       <div class="modal-actions">
@@ -1197,12 +1198,23 @@
   </div>
 
   <div class="overlay" id="m-device-confirm">
-    <div class="modal" style="max-width:360px;">
-      <h2 style="color:var(--accent);">📱 CİHAZ TANIMLAMA</h2>
+    <div class="modal" style="max-width:380px;">
+      <h2 style="color:var(--accent);">🏁 ARAÇ TESLİMATI</h2>
       <div id="mdc-msg" style="margin:1rem 0; font-size:.9rem; line-height:1.5; color:var(--text);"></div>
-      <div class="modal-actions" style="flex-direction:column; gap:.5rem;">
-        <button class="btn-primary" id="mdc-confirm-btn" style="width:100%;">EVET, KABUL ET VE TESLİM ET</button>
+      <div class="modal-actions" id="mdc-actions" style="flex-direction:column; gap:.5rem;">
+        <button class="btn-primary" id="mdc-confirm-btn" style="width:100%;">EVET, TESLİM ET</button>
         <button class="btn-ghost" onclick="closeOverlay('m-device-confirm')" style="width:100%;">İPTAL</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="m-driver-select">
+    <div class="modal" style="max-width:400px;">
+      <h2 style="color:var(--accent2);">👤 TESLİM EDEN KİŞİ</h2>
+      <div class="modal-sub">Aracı kim teslim ediyor? Adınızı seçin:</div>
+      <div class="driver-grid" id="mds-drivers" style="margin: 1.2rem 0; max-height:240px; overflow-y:auto;"></div>
+      <div class="modal-actions">
+        <button class="btn-ghost" onclick="closeOverlay('m-driver-select')" style="width:100%;">İPTAL</button>
       </div>
     </div>
   </div>
@@ -1415,26 +1427,76 @@
       activeVehicle = VEHICLES.find(v => v.Plaka === plate);
       const rec = RECORDS.find(r => r.Plaka === plate && r.Durum === 'AÇIK');
       if (rec) { 
+        activeRecord = rec;
         const currentSavedDriver = localStorage.getItem('vts_driver_name');
-        if (!adminLoggedIn && currentSavedDriver !== rec.Sürücü) {
+        
+        // Admin girişli ise veya aracı alan kişi kendi telefonundan açtıysa doğrudan dönüşü aç
+        if (adminLoggedIn || currentSavedDriver === rec.Sürücü) {
+          openReturn(rec.Sürücü);
+          return;
+        }
+
+        // Durum 1: Cihazda başka bir sürücü kayıtlı (örn: Mehmet, aracı Ahmet almıştı)
+        if (currentSavedDriver) {
           document.getElementById('mdc-msg').innerHTML = `
-            Bu aracı zimmetine alan kişi: <strong style="color:var(--accent);">${rec.Sürücü}</strong>.<br><br>
-            Bu telefon / cihaz da size mi ait?<br>
-            <span style="font-size:.78rem; color:var(--muted); margin-top:.4rem; display:block;">Onaylarsanız cihazınız <strong>${rec.Sürücü}</strong> adına tanımlanacak ve teslimat ekranı açılacaktır.</span>
+            Bu araç <strong style="color:var(--accent);">${rec.Sürücü}</strong> adına zimmetli görünüyor.<br><br>
+            Cihazınızda tanımlı kişi: <strong style="color:var(--accent2);">${currentSavedDriver}</strong>.<br><br>
+            Aracı <strong>${rec.Sürücü}</strong> yerine siz mi teslim ediyorsunuz?
+            <div style="font-size:.78rem; color:var(--muted); margin-top:.8rem; line-height:1.4; padding:.6rem; background:rgba(255,255,255,.03); border-radius:4px; border:1px solid var(--border);">
+              ✓ Kendi cihaz tanımlamanız (<strong>${currentSavedDriver}</strong>) bozulmaz.<br>
+              ✓ Teslim eden kişi olarak adınız sisteme işlenir.
+            </div>
+          `;
+          document.getElementById('mdc-actions').innerHTML = `
+            <button class="btn-primary" id="mdc-confirm-btn" style="width:100%;">EVET, TESLİM ET</button>
+            <button class="btn-ghost" onclick="closeOverlay('m-device-confirm')" style="width:100%;">İPTAL</button>
           `;
           document.getElementById('mdc-confirm-btn').onclick = function() {
-            localStorage.setItem('vts_driver_name', rec.Sürücü);
             closeOverlay('m-device-confirm');
-            activeRecord = rec;
-            openReturn();
+            openReturn(currentSavedDriver);
           };
           document.getElementById('m-device-confirm').classList.add('open');
           return;
         }
-        activeRecord = rec; openReturn(); 
+
+        // Durum 2: Cihazda henüz hiçbir sürücü kayıtlı değil (ilk kez kullanıyor)
+        document.getElementById('mdc-msg').innerHTML = `
+          Bu araç <strong style="color:var(--accent);">${rec.Sürücü}</strong> adına zimmetli.<br><br>
+          Lütfen teslimatı kimin yaptığını seçin:
+        `;
+        document.getElementById('mdc-actions').innerHTML = `
+          <button class="btn-primary" id="mdc-btn-iam" style="width:100%; margin-bottom:.3rem;">🙋 Aracı Alan Benim (${rec.Sürücü})</button>
+          <button class="btn-ghost" id="mdc-btn-other" style="width:100%; border:1px solid var(--border2); margin-bottom:.3rem;">🤝 Başkası Adına Teslim Ediyorum</button>
+          <button class="btn-ghost" onclick="closeOverlay('m-device-confirm')" style="width:100%;">İPTAL</button>
+        `;
+        document.getElementById('mdc-btn-iam').onclick = function() {
+          localStorage.setItem('vts_driver_name', rec.Sürücü);
+          closeOverlay('m-device-confirm');
+          openReturn(rec.Sürücü);
+        };
+        document.getElementById('mdc-btn-other').onclick = function() {
+          closeOverlay('m-device-confirm');
+          promptReturnerSelection(rec);
+        };
+        document.getElementById('m-device-confirm').classList.add('open');
+        return;
       } else { 
         openCheckout(); 
       }
+    }
+
+    function promptReturnerSelection(rec) {
+      const grid = document.getElementById('mds-drivers');
+      grid.innerHTML = DRIVERS.map(d => `
+        <div class="driver-chip" onclick="selectReturner('${d['Ad Soyad']}')">${d['Ad Soyad']}</div>
+      `).join('');
+      document.getElementById('m-driver-select').classList.add('open');
+    }
+
+    function selectReturner(name) {
+      localStorage.setItem('vts_driver_name', name);
+      closeOverlay('m-driver-select');
+      openReturn(name);
     }
 
     function openCheckout() {
@@ -1451,7 +1513,8 @@
         window.selectedDriver = savedStr;
       } else {
         const ofisSuruculeri = DRIVERS;
-        dGrid.innerHTML = ofisSuruculeri.map(d => `<div class="driver-chip" onclick="selDrv(this,'${d['Ad Soyad']}')">${d['Ad Soyad']}</div>`).join('');
+        dGrid.innerHTML = ofisSuruculeri.map(d => `<div class="driver-chip" onclick="selDrv(this,'${d['Ad Soyad']}')">${d['Ad Soyad']}</div>`).join('') +
+          `<div style="font-size:.75rem; color:var(--muted); margin-top:.6rem; width:100%;">💡 İsminizi bir kez seçtiğinizde cihazınız sonraki işlemleriniz için adınızı hatırlar.</div>`;
         window.selectedDriver = '';
       }
       document.getElementById('m-checkout').classList.add('open');
@@ -1491,11 +1554,25 @@
       }
     }
 
-    function openReturn() {
-      document.getElementById('mr-sub').textContent = activeVehicle.Plaka;
+    function openReturn(actualReturner) {
+      const returner = actualReturner || localStorage.getItem('vts_driver_name') || activeRecord.Sürücü;
+      window.currentReturnerName = returner;
+
+      document.getElementById('mr-sub').textContent = activeVehicle.Plaka + ' / ' + activeVehicle.Model;
       document.getElementById('mr-drv').value = activeRecord.Sürücü;
       document.getElementById('mr-km').value = activeRecord['Çıkış KM'];
       document.getElementById('mr-stamp').innerHTML = '⏱ Dönüş Saati: ' + new Date().toLocaleTimeString('tr-TR');
+
+      const infoBox = document.getElementById('mr-returner-info');
+      if (infoBox) {
+        if (returner !== activeRecord.Sürücü) {
+          infoBox.style.display = 'block';
+          infoBox.innerHTML = `ℹ️ Aracı teslim eden: <strong style="color:var(--accent2);">${returner}</strong> (Zimmetli: ${activeRecord.Sürücü})`;
+        } else {
+          infoBox.style.display = 'none';
+        }
+      }
+
       document.getElementById('m-return').classList.add('open');
     }
 
@@ -1511,8 +1588,17 @@
       const btn = document.getElementById('mr-sub-btn');
       if (btn) btn.disabled = true;
       
+      const returner = window.currentReturnerName || localStorage.getItem('vts_driver_name') || activeRecord.Sürücü;
+
       try {
-        await send({ action: 'return', id: activeRecord.ID, returnKm: km, returnTime: new Date().toLocaleTimeString('tr-TR'), returnDevice: getDeviceId(), returnDriverName: localStorage.getItem('vts_driver_name') || '' });
+        await send({ 
+          action: 'return', 
+          id: activeRecord.ID, 
+          returnKm: km, 
+          returnTime: new Date().toLocaleTimeString('tr-TR'), 
+          returnDevice: getDeviceId(), 
+          returnDriverName: returner 
+        });
         closeOverlay('m-return');
         loadRecords();
       } catch (err) {
