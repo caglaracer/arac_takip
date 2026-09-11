@@ -5,14 +5,22 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Araç Takip Sistemi V2</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap"
     rel="stylesheet">
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#f0c040">
-  <link rel="apple-touch-icon" href="./logo.png">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <link rel="apple-touch-icon" href="./icon-192.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icon-192.png">
+  <script>
+    if (localStorage.getItem('vts_unlocked') === 'true') {
+      document.documentElement.classList.add('vts-unlocked');
+    }
+  </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js" defer></script>
   <style>
     :root {
       --bg: #0a0c0f;
@@ -128,6 +136,10 @@
       background: var(--accent2);
     }
 
+    .sync-dot.cached {
+      background: #38bdf8;
+    }
+
     .sync-dot.err {
       background: var(--danger);
     }
@@ -229,6 +241,45 @@
       grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
       gap: 1.2rem;
     }
+
+    /* Skeleton Loader */
+    .skeleton-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .9rem;
+      position: relative;
+      overflow: hidden;
+      min-height: 280px;
+    }
+
+    .skeleton-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+      animation: shimmer 1.5s infinite;
+    }
+
+    @keyframes shimmer {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+
+    .skeleton-line {
+      background: var(--border2);
+      border-radius: 4px;
+    }
+
+    .skeleton-plate { width: 140px; height: 36px; }
+    .skeleton-model { width: 100px; height: 16px; }
+    .skeleton-status { width: 120px; height: 16px; }
+    .skeleton-qr { width: 120px; height: 120px; border-radius: 6px; }
+    .skeleton-btn { width: 100%; height: 38px; border-radius: 4px; margin-top: auto; }
 
     .qr-card {
       background: var(--card);
@@ -656,6 +707,10 @@
       border-top: 3px solid var(--accent);
       border-radius: 6px;
       padding: 1.8rem;
+    }
+
+    html.vts-unlocked #entry-lock {
+      display: none !important;
     }
 
     #entry-lock {
@@ -1204,11 +1259,14 @@
     }
 
     async function pressKey(k) {
-      if (k === 'C') { currentPin = ''; } else if (k === 'OK') { if (currentPin.length === 4) { const h = await sha256(currentPin); if (h === HASH_ENTRY) { document.getElementById('entry-lock').style.display = 'none'; localStorage.setItem('vts_unlocked', 'true'); loadRecords(); } else { document.getElementById('lock-err').textContent = 'Hatalı!'; currentPin = ''; } } } else if (currentPin.length < 4) { currentPin += k; }
+      if (k === 'C') { currentPin = ''; } else if (k === 'OK') { if (currentPin.length === 4) { const h = await sha256(currentPin); if (h === HASH_ENTRY) { document.documentElement.classList.add('vts-unlocked'); document.getElementById('entry-lock').style.display = 'none'; localStorage.setItem('vts_unlocked', 'true'); loadRecords(); } else { document.getElementById('lock-err').textContent = 'Hatalı!'; currentPin = ''; } } } else if (currentPin.length < 4) { currentPin += k; }
       const dots = document.querySelectorAll('.pin-dot'); dots.forEach((d, i) => d.className = 'pin-dot' + (i < currentPin.length ? ' filled' : ''));
       if (currentPin.length === 4 && k !== 'OK') setTimeout(() => pressKey('OK'), 200);
     }
-    if (localStorage.getItem('vts_unlocked') === 'true') document.getElementById('entry-lock').style.display = 'none';
+    if (localStorage.getItem('vts_unlocked') === 'true') {
+      document.documentElement.classList.add('vts-unlocked');
+      document.getElementById('entry-lock').style.display = 'none';
+    }
 
     function switchOffice(off, btn) {
       currentOffice = off;
@@ -1217,47 +1275,112 @@
       renderQR();
     }
 
-    function setSync(s, l) { const d = document.getElementById('sync-dot'); const lb = document.getElementById('sync-label'); d.className = 'sync-dot ' + s; lb.textContent = l; }
+    function setSync(s, l) { const d = document.getElementById('sync-dot'); const lb = document.getElementById('sync-label'); if (d) d.className = 'sync-dot ' + s; if (lb) lb.textContent = l; }
 
-    async function loadRecords() {
-      setSync('syncing', 'Bağlanıyor...');
+    const CACHE_KEY = 'vts_data_cache_v2';
+
+    function applyData(d) {
+      if (!d) return;
+      RECORDS = d.records || [];
+      VEHICLES = d.vehicles || [];
+      DRIVERS = d.drivers || [];
+      MAINTENANCE_RECORDS = d.maintenanceRecords || [];
+      COMPANIES = d.companies || [];
+
+      if (!window.dashFiltersInitialized && adminLoggedIn) { renderDashFiltersInit(); window.dashFiltersInitialized = true; }
+      renderQR();
+      renderTable();
+      if (document.getElementById('page-maint').classList.contains('active')) {
+        renderMaintenance();
+      }
+      if (adminLoggedIn) {
+        renderAdmin();
+        if(document.getElementById('page-dash').classList.contains('active')) renderDashboard();
+      }
+      
+      const urlParams = new URLSearchParams(window.location.search);
+      const pPlate = urlParams.get('p');
+      if (pPlate && !window.qrTriggered && VEHICLES.length > 0) {
+        window.qrTriggered = true;
+        const vehicle = VEHICLES.find(v => v.Plaka === pPlate);
+        if (vehicle) {
+          const isTracked = vehicle.Takip !== 'HAYIR' && vehicle.Takip !== 'False' && vehicle.Takip !== false && vehicle.Takip !== 'no';
+          if (isTracked) {
+            openAction(vehicle.Plaka);
+          } else {
+            alert('Hata: Bu araç sefer takibi dışındadır.');
+          }
+        }
+        window.history.replaceState({}, document.title, location.pathname);
+      }
+    }
+
+    function initDataFromCache() {
+      try {
+        const raw = localStorage.getItem(CACHE_KEY);
+        if (raw) {
+          const cached = JSON.parse(raw);
+          if (cached && cached.vehicles && cached.vehicles.length > 0) {
+            applyData(cached);
+            setSync('cached', 'Önbellek');
+            return true;
+          }
+        }
+      } catch (e) {
+        console.warn('[Cache] Önbellek okunamadı:', e);
+      }
+      return false;
+    }
+
+    function renderSkeleton() {
+      const grid = document.getElementById('qr-grid');
+      if (!grid) return;
+      grid.innerHTML = Array(6).fill(0).map(() => `
+        <div class="skeleton-card">
+          <div class="skeleton-line skeleton-plate"></div>
+          <div class="skeleton-line skeleton-model"></div>
+          <div class="skeleton-line skeleton-status"></div>
+          <div class="skeleton-line skeleton-qr"></div>
+          <div class="skeleton-line skeleton-btn"></div>
+        </div>
+      `).join('');
+    }
+
+    async function loadRecords(isSilent = false) {
+      if (!isSilent) {
+        setSync('syncing', 'Bağlanıyor...');
+      } else {
+        setSync('syncing', 'Güncelleniyor...');
+      }
       try {
         const r = await fetch(SCRIPT_URL); const d = await r.json();
         if (d.ok) {
-          RECORDS = d.records || [];
-          VEHICLES = d.vehicles || [];
-          DRIVERS = d.drivers || [];
-          MAINTENANCE_RECORDS = d.maintenanceRecords || [];
-          COMPANIES = d.companies || [];
+          try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify(d));
+          } catch(err) {
+            console.warn('[Cache] Önbellek yazılamadı:', err);
+          }
+          applyData(d);
           setSync('ok', 'Güncel');
-          if (!window.dashFiltersInitialized && adminLoggedIn) { renderDashFiltersInit(); window.dashFiltersInitialized = true; }
-          renderQR();
-          renderTable();
-          if (document.getElementById('page-maint').classList.contains('active')) {
-            renderMaintenance();
-          }
-          if (adminLoggedIn) {
-            renderAdmin();
-            if(document.getElementById('page-dash').classList.contains('active')) renderDashboard();
-          }
-          
-          const urlParams = new URLSearchParams(window.location.search);
-          const pPlate = urlParams.get('p');
-          if (pPlate && !window.qrTriggered) {
-            window.qrTriggered = true;
-            const vehicle = VEHICLES.find(v => v.Plaka === pPlate);
-            if (vehicle) {
-              const isTracked = vehicle.Takip !== 'HAYIR' && vehicle.Takip !== 'False' && vehicle.Takip !== false && vehicle.Takip !== 'no';
-              if (isTracked) {
-                openAction(vehicle.Plaka);
-              } else {
-                alert('Hata: Bu araç sefer takibi dışındadır.');
-              }
-            }
-            window.history.replaceState({}, document.title, location.pathname);
+        } else {
+          setSync('err', 'Hata');
+        }
+      } catch (e) { 
+        const hasCache = !!localStorage.getItem(CACHE_KEY);
+        setSync('err', hasCache ? 'Çevrimdışı (Önbellek)' : 'Bağlantı Yok'); 
+      }
+    }
+
+    function drawQRCodes() {
+      if (typeof QRCode === 'undefined') return;
+      document.querySelectorAll('.qr-wrap').forEach(wrap => {
+        if (wrap.children.length === 0) {
+          const plate = wrap.getAttribute('data-plate');
+          if (plate) {
+            new QRCode(wrap, { text: location.href.split('?')[0] + '?p=' + plate, width: 120, height: 120 });
           }
         }
-      } catch (e) { setSync('err', 'Bağlantı Yok'); }
+      });
     }
 
     function renderQR() {
@@ -1276,12 +1399,16 @@
       <div class="plate-tag">${v.Plaka}</div>
       <div class="model-label" style="font-size:.65rem;">${v.Model}</div>
       <div class="status-row"><span class="dot ${out ? 'dot-out' : 'dot-ok'}"></span><span>${out ? 'ZİMMETLİ: ' + rec.Sürücü : 'MÜSAİT'}</span></div>
-      <div class="qr-wrap" id="qr-${v.Plaka.replace(/ /g, '')}"></div>
+      <div class="qr-wrap" id="qr-${v.Plaka.replace(/ /g, '')}" data-plate="${v.Plaka}"></div>
       <button class="qr-action-btn ${out ? 'return-btn' : ''}" onclick="openAction('${v.Plaka}')">${out ? '🏁 DÖNÜŞ YAP' : '🚗 ARAÇ AL'}</button>
     `;
         grid.appendChild(div);
-        new QRCode(document.getElementById('qr-' + v.Plaka.replace(/ /g, '')), { text: location.href.split('?')[0] + '?p=' + v.Plaka, width: 120, height: 120 });
       });
+      if (typeof QRCode !== 'undefined') {
+        drawQRCodes();
+      } else {
+        window.addEventListener('load', drawQRCodes, { once: true });
+      }
     }
 
     function openAction(plate) {
@@ -2106,7 +2233,27 @@
     }
 
     setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString('tr-TR'); }, 1000);
-    loadRecords();
+    
+    // SWR (Stale-While-Revalidate) Başlatma
+    const hasCache = initDataFromCache();
+    if (!hasCache) {
+      renderSkeleton();
+      loadRecords(false);
+    } else {
+      // Önbellekten hemen yüklendi, arka planda güncel veriyi çek
+      loadRecords(true);
+    }
+
+    // Service Worker Kaydı (PWA Çevrimdışı / Hızlı Başlangıç)
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').then(() => {
+          console.log('[SW] Service Worker başarıyla aktif.');
+        }).catch((err) => {
+          console.warn('[SW] Service Worker kayıt hatası:', err);
+        });
+      });
+    }
   </script>
 </body>
 
