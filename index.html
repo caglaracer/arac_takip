@@ -242,6 +242,80 @@
       gap: 1.2rem;
     }
 
+    /* Driver Profile Button & Active Driver Bar */
+    .driver-profile-btn {
+      background: var(--card);
+      border: 1px solid var(--border2);
+      color: var(--text);
+      font-family: 'IBM Plex Sans', sans-serif;
+      font-size: .82rem;
+      padding: .35rem .8rem;
+      border-radius: 20px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      transition: all .2s;
+    }
+    .driver-profile-btn:hover {
+      border-color: var(--accent);
+      background: var(--panel);
+    }
+    .driver-profile-btn .dp-name {
+      color: var(--accent);
+      font-weight: 600;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .active-driver-bar {
+      background: linear-gradient(90deg, rgba(240, 192, 64, 0.08), rgba(26, 29, 36, 0.7));
+      border: 1px solid rgba(240, 192, 64, 0.25);
+      border-radius: 8px;
+      padding: .7rem 1.1rem;
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: .8rem;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .active-driver-bar:hover {
+      border-color: var(--accent);
+      background: rgba(240, 192, 64, 0.12);
+    }
+    .adb-icon {
+      font-size: 1.3rem;
+    }
+    .adb-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: .15rem;
+    }
+    .adb-title {
+      font-size: .68rem;
+      color: var(--muted);
+      letter-spacing: 0.5px;
+      font-weight: 500;
+    }
+    .adb-name {
+      font-size: .95rem;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .adb-btn {
+      font-size: .75rem;
+      color: var(--accent2);
+      border: 1px solid rgba(64, 212, 160, 0.35);
+      padding: .3rem .7rem;
+      border-radius: 4px;
+      background: rgba(64, 212, 160, 0.06);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
     /* Skeleton Loader */
     .skeleton-card {
       background: var(--card);
@@ -868,8 +942,12 @@
       <span class="sync-dot" id="sync-dot"></span>
       <span id="sync-label">—</span>
     </div>
+    <button class="driver-profile-btn" id="header-driver-btn" onclick="openDriverProfileModal()" title="Cihaz Sürücüsü">
+      <span>👤</span>
+      <span class="dp-name" id="header-driver-name">Sürücü Seç</span>
+    </button>
     <div class="live-clock" id="clock"></div>
-    <button class="admin-btn" id="admin-toggle-btn" onclick="toggleAdmin()" style="margin-left:1rem;">⚙ Admin</button>
+    <button class="admin-btn" id="admin-toggle-btn" onclick="toggleAdmin()" style="margin-left:0.6rem;">⚙ Admin</button>
   </header>
 
   <div class="tabs">
@@ -882,6 +960,15 @@
   </div>
 
   <div class="page active" id="page-qr">
+    <!-- Aktif Cihaz / Sürücü Bilgi Şeridi -->
+    <div class="active-driver-bar" id="active-driver-bar" onclick="openDriverProfileModal()" title="Cihaz Sürücüsünü Değiştir">
+      <span class="adb-icon">📱</span>
+      <div class="adb-content">
+        <span class="adb-title">BU TELEFONDA TANIMLI SÜRÜCÜ:</span>
+        <strong class="adb-name" id="adb-name">Belirtilmedi</strong>
+      </div>
+      <span class="adb-btn">✏ Değiştir</span>
+    </div>
 
     <div class="qr-search-area" style="display:flex;gap:1rem;margin-bottom:1.2rem;align-items:center;">
       <div class="section-title" style="margin:0;">ARAÇLAR</div>
@@ -1219,6 +1306,21 @@
     </div>
   </div>
 
+  <!-- Cihaz Sürücüsü Profil Modalı -->
+  <div class="overlay" id="m-profile">
+    <div class="modal" style="max-width:420px;">
+      <h2 style="color:var(--accent2);">👤 CİHAZ KULLANICISI</h2>
+      <div class="modal-sub">Bu telefondan araç alırken adınız otomatik olarak gelir. Lütfen kendinizi seçin:</div>
+      <div class="driver-grid" id="mp-drivers" style="margin: 1.2rem 0; max-height:260px; overflow-y:auto;"></div>
+      <div style="padding-top:.8rem; border-top:1px solid var(--border); display:flex; flex-direction:column; gap:.6rem;">
+        <button class="btn-ghost" onclick="clearProfileDriver()" style="width:100%; border:1px dashed var(--border2); font-size:.8rem; color:var(--muted);">
+          🔄 Ortak Cihaz Modu (Beni Hatırlama, Her Seferinde Sor)
+        </button>
+        <button class="btn-ghost" onclick="closeOverlay('m-profile')" style="width:100%;">KAPAT</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script>
@@ -1298,6 +1400,9 @@
       DRIVERS = d.drivers || [];
       MAINTENANCE_RECORDS = d.maintenanceRecords || [];
       COMPANIES = d.companies || [];
+
+      checkDeviceRecovery();
+      updateDriverProfileUI();
 
       if (!window.dashFiltersInitialized && adminLoggedIn) { renderDashFiltersInit(); window.dashFiltersInitialized = true; }
       renderQR();
@@ -1495,8 +1600,70 @@
 
     function selectReturner(name) {
       localStorage.setItem('vts_driver_name', name);
+      updateDriverProfileUI();
       closeOverlay('m-driver-select');
       openReturn(name);
+    }
+
+    function updateDriverProfileUI() {
+      const currentSaved = localStorage.getItem('vts_driver_name');
+      const hName = document.getElementById('header-driver-name');
+      const aName = document.getElementById('adb-name');
+      
+      if (currentSaved) {
+        if (hName) hName.textContent = currentSaved;
+        if (aName) aName.textContent = currentSaved;
+      } else {
+        if (hName) hName.textContent = 'Sürücü Seç';
+        if (aName) aName.textContent = 'Tanımlı Değil (Seçmek için tıklayın)';
+      }
+    }
+
+    function openDriverProfileModal() {
+      const currentSaved = localStorage.getItem('vts_driver_name');
+      const grid = document.getElementById('mp-drivers');
+      if (!grid) return;
+      
+      grid.innerHTML = DRIVERS.map(d => {
+        const isSelected = d['Ad Soyad'] === currentSaved;
+        return `
+          <div class="driver-chip ${isSelected ? 'selected' : ''}" onclick="setProfileDriver('${d['Ad Soyad']}')">
+            ${isSelected ? '✓ ' : ''}${d['Ad Soyad']}
+          </div>
+        `;
+      }).join('');
+      
+      document.getElementById('m-profile').classList.add('open');
+    }
+
+    function setProfileDriver(name) {
+      localStorage.setItem('vts_driver_name', name);
+      updateDriverProfileUI();
+      closeOverlay('m-profile');
+      showToast(`Cihaz sürücüsü "${name}" olarak ayarlandı.`, 'ok');
+      if (document.getElementById('m-checkout').classList.contains('open')) {
+        openCheckout();
+      }
+    }
+
+    function clearProfileDriver() {
+      localStorage.removeItem('vts_driver_name');
+      updateDriverProfileUI();
+      closeOverlay('m-profile');
+      showToast('Cihaz hafızası temizlendi. Her işlemde sürücü sorulacak.', 'ok');
+      if (document.getElementById('m-checkout').classList.contains('open')) {
+        openCheckout();
+      }
+    }
+
+    function checkDeviceRecovery() {
+      const devId = getDeviceId();
+      const currentSaved = localStorage.getItem('vts_driver_name');
+      // Çağrı Deniz'in 200+ kez kullandığı ana cihazında Serkan Ünal kalmışsa otomatik düzelt
+      if (devId === 'CJPAS2A-MNIY1FV1' && currentSaved === 'Serkan Ünal') {
+        localStorage.setItem('vts_driver_name', 'Çağrı Deniz');
+        console.log('[Auto-Fix] Cihaz sürücüsü Çağrı Deniz olarak düzeltildi.');
+      }
     }
 
     function openCheckout() {
@@ -1522,6 +1689,7 @@
 
     function clearSavedDriver() {
       localStorage.removeItem('vts_driver_name');
+      updateDriverProfileUI();
       openCheckout();
     }
 
@@ -2320,6 +2488,9 @@
 
     setInterval(() => { document.getElementById('clock').textContent = new Date().toLocaleTimeString('tr-TR'); }, 1000);
     
+    checkDeviceRecovery();
+    updateDriverProfileUI();
+
     // SWR (Stale-While-Revalidate) Başlatma
     const hasCache = initDataFromCache();
     if (!hasCache) {
