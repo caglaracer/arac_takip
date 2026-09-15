@@ -715,6 +715,42 @@
       border-radius: 2px;
     }
 
+    .badge-warning {
+      background: rgba(240, 192, 64, .15);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      font-size: .65rem;
+      padding: .12rem .45rem;
+      border-radius: 2px;
+    }
+
+    .badge-periodic {
+      background: rgba(240, 192, 64, .15);
+      color: var(--accent);
+      border: 1px solid var(--accent);
+      font-size: .65rem;
+      padding: .12rem .45rem;
+      border-radius: 2px;
+    }
+
+    .maint-prog-track {
+      width: 100%;
+      max-width: 80px;
+      height: 6px;
+      background: var(--border2);
+      border-radius: 3px;
+      overflow: hidden;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    .maint-prog-bar {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
     .empty-state {
       text-align: center;
       padding: 4rem 2rem;
@@ -723,19 +759,20 @@
 
     .toast {
       position: fixed;
-      bottom: 1.5rem;
-      right: 1.5rem;
+      bottom: 2rem;
+      right: 2rem;
       background: var(--accent2);
       color: #000;
-      font-family: 'IBM Plex Mono', monospace;
-      font-size: .83rem;
-      font-weight: 700;
-      padding: .7rem 1.3rem;
+      padding: .8rem 1.4rem;
       border-radius: 4px;
-      z-index: 999;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: .85rem;
+      font-weight: 600;
+      z-index: 1000;
       opacity: 0;
-      transform: translateY(16px);
+      transform: translateY(20px);
       transition: all .3s;
+      pointer-events: none;
     }
 
     .toast.show {
@@ -754,21 +791,24 @@
       gap: 0.5rem;
       margin-bottom: 0.2rem;
       width: 100%;
+      flex-wrap: wrap;
     }
     .toggle-btn {
       flex: 1;
+      min-width: 120px;
       background: var(--card);
       border: 1px solid var(--border2);
       color: var(--muted);
       font-family: 'IBM Plex Mono', monospace;
-      font-size: .78rem;
+      font-size: .75rem;
       font-weight: 600;
-      padding: .65rem;
+      padding: .65rem .5rem;
       border-radius: 4px;
       cursor: pointer;
       text-align: center;
       transition: all .2s;
       text-transform: uppercase;
+      white-space: nowrap;
     }
     .toggle-btn.active {
       background: rgba(240, 192, 64, 0.12);
@@ -777,7 +817,7 @@
     }
     .maint-card {
       background: var(--panel);
-      border: 1px solid var(--border);
+      border: 1px solid var(--border);;
       border-top: 3px solid var(--accent);
       border-radius: 6px;
       padding: 1.8rem;
@@ -992,6 +1032,7 @@
             <div class="btn-group-toggle">
               <button type="button" class="toggle-btn active" id="btn-type-wash" onclick="setMaintType('Araç Yıkama')">🧼 ARAÇ YIKAMA</button>
               <button type="button" class="toggle-btn" id="btn-type-tire" onclick="setMaintType('Lastik Değişimi')">🛞 LASTİK DEĞİŞİMİ</button>
+              <button type="button" class="toggle-btn" id="btn-type-periodic" onclick="setMaintType('Periyodik Bakım')">🛠️ PERİYODİK BAKIM</button>
             </div>
             <input type="hidden" id="maint-type" value="Araç Yıkama">
           </div>
@@ -1000,7 +1041,7 @@
         <div class="form-row">
           <div class="form-group">
             <label>PLAKA SEÇİN</label>
-            <select id="maint-plate">
+            <select id="maint-plate" onchange="onMaintPlateChange()">
               <!-- Dinamik doldurulacak -->
             </select>
           </div>
@@ -1010,9 +1051,13 @@
           </div>
         </div>
         
-        <div class="form-row full">
+        <div class="form-row">
           <div class="form-group">
-            <label>YIKATAN / YAPAN PERSONEL</label>
+            <label>İŞLEM / ARAÇ KM</label>
+            <input type="number" id="maint-km" placeholder="Örn: 286500" min="0">
+          </div>
+          <div class="form-group">
+            <label>YIKATAN / BAKIM YAPTIRAN</label>
             <select id="maint-driver">
               <!-- Dinamik doldurulacak -->
             </select>
@@ -1044,8 +1089,8 @@
 
         <div class="form-row full">
           <div class="form-group">
-            <label>NOTLAR / AÇIKLAMA (OPSİYONEL)</label>
-            <textarea id="maint-notes" placeholder="Ek açıklama giriniz..." rows="3"></textarea>
+            <label>NOTLAR / YAPILAN İŞLEMLER (OPSİYONEL)</label>
+            <textarea id="maint-notes" placeholder="Ek açıklama, değişen parçalar (yağ, filtre, buji vb.)..." rows="3"></textarea>
           </div>
         </div>
         
@@ -1069,6 +1114,7 @@
                 <th>Tarih</th>
                 <th>Plaka</th>
                 <th>İşlem</th>
+                <th style="text-align: right;">KM</th>
                 <th>Personel</th>
                 <th>Ücret</th>
                 <th>Firma</th>
@@ -1090,7 +1136,7 @@
       
       <!-- Özet Kartları -->
       <div class="dash" style="padding:0; margin-bottom:1.5rem;">
-        <div class="cards" id="maint-expense-cards" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));">
+        <div class="cards" id="maint-expense-cards" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));">
           <!-- Dinamik doldurulacak -->
         </div>
       </div>
@@ -1106,6 +1152,8 @@
               <th style="text-align: right;">Yıkama Masrafı</th>
               <th style="text-align: center;">Lastik Sayısı</th>
               <th style="text-align: right;">Lastik Masrafı</th>
+              <th style="text-align: center;">Bakım Sayısı</th>
+              <th style="text-align: right;">Bakım Masrafı</th>
               <th style="text-align: right; color:var(--accent2);">Toplam Masraf</th>
             </tr>
           </thead>
@@ -1203,6 +1251,37 @@
       </div>
 
       <div class="cards" id="dash-cards"></div>
+
+      <!-- Araç Bazlı Özel Bakım ve Güncel KM Özeti (Tek araç seçildiğinde aktif olur) -->
+      <div id="dash-vehicle-maint-cards" style="display: none; margin-bottom: 1.2rem;"></div>
+
+      <!-- Filo Bakım ve Güncel KM Takip Paneli -->
+      <div class="maint-card" id="dash-fleet-maint-card" style="margin-bottom: 1.5rem; padding: 1.2rem 1.4rem;">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:0.9rem;">
+          <div>
+            <h3 style="font-size:15px; font-weight:600; color:var(--text); letter-spacing:.5px;">🛠️ ARAÇ GÜNCEL KM VE PERİYODİK BAKIM TAKİBİ</h3>
+            <div style="font-size:12px; color:var(--muted); margin-top:2px;">Filo genelinde güncel sayaçlar, en son bakım geçmişi ve sonraki bakıma kalan mesafe (Periyot: 10.000 KM)</div>
+          </div>
+          <div id="dash-fleet-maint-summary-badge" style="font-size:12px; font-family:'IBM Plex Mono',monospace;"></div>
+        </div>
+        <div class="tbl-wrap" style="max-height: 380px; overflow-y: auto;">
+          <table class="rtbl">
+            <thead>
+              <tr>
+                <th>Plaka</th>
+                <th>Model</th>
+                <th style="text-align: right;">Güncel KM</th>
+                <th style="text-align: center;">Son Bakım Tarihi</th>
+                <th style="text-align: right;">Son Bakım KM</th>
+                <th style="text-align: right;">Bakımdan Beri</th>
+                <th style="text-align: center;">Kalan / Durum</th>
+                <th style="text-align: center;">Hızlı İşlem</th>
+              </tr>
+            </thead>
+            <tbody id="dash-fleet-maint-body"></tbody>
+          </table>
+        </div>
+      </div>
 
       <div class="charts-row">
         <div class="chart-box">
@@ -1829,19 +1908,155 @@
       document.getElementById('maint-type').value = type;
       const btnWash = document.getElementById('btn-type-wash');
       const btnTire = document.getElementById('btn-type-tire');
-      if (type === 'Araç Yıkama') {
-        btnWash.classList.add('active');
-        btnTire.classList.remove('active');
-      } else {
-        btnWash.classList.remove('active');
-        btnTire.classList.add('active');
-      }
+      const btnPeriodic = document.getElementById('btn-type-periodic');
+      if (btnWash) btnWash.classList.toggle('active', type === 'Araç Yıkama');
+      if (btnTire) btnTire.classList.toggle('active', type === 'Lastik Değişimi');
+      if (btnPeriodic) btnPeriodic.classList.toggle('active', type === 'Periyodik Bakım');
       populateMaintCompanies(type);
+    }
+
+    function extractKmFromMaint(r) {
+      if (!r) return null;
+      let km = Number(r.KM || r.Km || r.km || r['Bakım KM'] || r['İşlem KM']);
+      if (!isNaN(km) && km > 0) return km;
+      const str = (r.Notlar || '') + ' ' + (r['İşlem Türü'] || '');
+      const match = str.match(/\[KM:\s*(\d+)\]|KM\s*[:=]?\s*(\d+)|(\d{5,6})\s*km/i);
+      if (match) {
+        const val = Number(match[1] || match[2] || match[3]);
+        if (!isNaN(val) && val > 1000) return val;
+      }
+      return null;
+    }
+
+    function getVehicleCurrentKm(plate) {
+      let maxKm = 0;
+      RECORDS.forEach(r => {
+        if (r.Plaka === plate) {
+          const donus = Number(r['Dönüş KM']);
+          const cikis = Number(r['Çıkış KM']);
+          if (!isNaN(donus) && donus > maxKm) maxKm = donus;
+          if (!isNaN(cikis) && cikis > maxKm) maxKm = cikis;
+        }
+      });
+      MAINTENANCE_RECORDS.forEach(r => {
+        if (r.Plaka === plate) {
+          const mKm = extractKmFromMaint(r);
+          if (mKm && mKm > maxKm) maxKm = mKm;
+        }
+      });
+      return maxKm;
+    }
+
+    function getVehicleLastMaintenance(plate) {
+      const records = MAINTENANCE_RECORDS.filter(r => r.Plaka === plate);
+      if (records.length === 0) return null;
+
+      const periodic = records.filter(r => (r['İşlem Türü'] || '').toLowerCase().includes('bakım'));
+      const candidateRecords = periodic.length > 0 ? periodic : records;
+
+      const sorted = [...candidateRecords].sort((a, b) => {
+        const da = parseDateStr(a.Tarih) || new Date(a.ID || 0);
+        const db = parseDateStr(b.Tarih) || new Date(b.ID || 0);
+        return db - da;
+      });
+
+      const latest = sorted[0];
+      const km = extractKmFromMaint(latest);
+      return {
+        record: latest,
+        date: latest.Tarih || '—',
+        km: km,
+        type: latest['İşlem Türü'] || 'Bakım',
+        company: latest['Yıkama Firması'] || '—',
+        price: latest.Ücret || 0,
+        notes: latest.Notlar || ''
+      };
+    }
+
+    const PERIODIC_INTERVAL_KM = 10000;
+
+    function getVehicleMaintStatus(plate) {
+      const currentKm = getVehicleCurrentKm(plate);
+      const lastMaint = getVehicleLastMaintenance(plate);
+
+      if (!lastMaint || !lastMaint.km) {
+        const isDue = currentKm >= PERIODIC_INTERVAL_KM;
+        return {
+          currentKm: currentKm,
+          lastMaintDate: lastMaint ? lastMaint.date : null,
+          lastMaintKm: null,
+          kmSinceLastMaint: null,
+          remainingKm: null,
+          status: isDue ? 'due' : 'unknown',
+          statusText: isDue ? 'Bakım Gerekli' : 'Kayıt Yok',
+          statusBadge: isDue 
+            ? '<span class="badge-danger">🔴 Bakım Zamanı</span>' 
+            : '<span class="badge-open" style="background:rgba(122,127,142,.15);border-color:var(--muted);color:var(--muted);">⚪ Bilgi Yok</span>'
+        };
+      }
+
+      const kmDiff = Math.max(0, currentKm - lastMaint.km);
+      const remaining = PERIODIC_INTERVAL_KM - kmDiff;
+
+      let status = 'ok';
+      let statusText = 'Normal';
+      let statusBadge = `<span class="badge-open">🟢 Normal (${remaining.toLocaleString('tr-TR')} km kaldı)</span>`;
+
+      if (remaining <= 0) {
+        status = 'due';
+        statusText = `${Math.abs(remaining).toLocaleString('tr-TR')} KM Aşıldı`;
+        statusBadge = `<span class="badge-danger">🔴 Bakım Zamanı (${Math.abs(remaining).toLocaleString('tr-TR')} km aşıldı)</span>`;
+      } else if (remaining <= 1500) {
+        status = 'warning';
+        statusText = `${remaining.toLocaleString('tr-TR')} KM Kaldı`;
+        statusBadge = `<span class="badge-warning">🟡 Yaklaşıyor (${remaining.toLocaleString('tr-TR')} km kaldı)</span>`;
+      }
+
+      return {
+        currentKm: currentKm,
+        lastMaintDate: lastMaint.date,
+        lastMaintKm: lastMaint.km,
+        kmSinceLastMaint: kmDiff,
+        remainingKm: remaining,
+        status: status,
+        statusText: statusText,
+        statusBadge: statusBadge
+      };
+    }
+
+    function onMaintPlateChange() {
+      const select = document.getElementById('maint-plate');
+      if (!select) return;
+      const plate = select.value;
+      const kmInput = document.getElementById('maint-km');
+      if (plate && kmInput) {
+        const curKm = getVehicleCurrentKm(plate);
+        if (curKm > 0) {
+          kmInput.value = curKm;
+          kmInput.placeholder = curKm.toString();
+        } else {
+          kmInput.value = '';
+          kmInput.placeholder = 'Örn: 286500';
+        }
+      }
+    }
+
+    function openMaintenanceForVehicle(plate) {
+      switchTab('maint', document.getElementById('tab-maint-btn'));
+      setMaintType('Periyodik Bakım');
+      const select = document.getElementById('maint-plate');
+      if (select) {
+        select.value = plate;
+        onMaintPlateChange();
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
     function populateMaintPlates() {
       const select = document.getElementById('maint-plate');
       if (!select) return;
+      
+      const currentSelected = select.value;
       
       // Kayıtlı araçlar (en başta sıralanacak)
       const tracked = VEHICLES.filter(v => v.Takip !== 'HAYIR' && v.Takip !== 'False' && v.Takip !== false && v.Takip !== 'no')
@@ -1858,6 +2073,10 @@
         html += `<option value="${v.Plaka}">${v.Plaka}</option>`;
       });
       select.innerHTML = html;
+      if (currentSelected && allVehicles.some(v => v.Plaka === currentSelected)) {
+        select.value = currentSelected;
+      }
+      onMaintPlateChange();
     }
 
     function populateMaintDrivers() {
@@ -2004,7 +2223,7 @@
       document.getElementById('maint-count').textContent = f.length;
       
       if (f.length === 0) {
-        body.innerHTML = '<tr><td colspan="9" style="text-align:center; color:var(--muted); padding:2rem;">Kayıt bulunamadı.</td></tr>';
+        body.innerHTML = '<tr><td colspan="10" style="text-align:center; color:var(--muted); padding:2rem;">Kayıt bulunamadı.</td></tr>';
         return;
       }
       
@@ -2017,16 +2236,33 @@
         const statusBadge = status === 'Ödenecek' 
           ? `<span class="badge-danger">🔴 Ödenecek</span>` 
           : `<span class="badge-open">🟢 Ödendi</span>`;
+        
+        const kmVal = extractKmFromMaint(r);
+        const kmStr = kmVal ? Number(kmVal).toLocaleString('tr-TR') + ' km' : '—';
+
+        const type = r['İşlem Türü'] || '';
+        let typeBadge = `<span class="badge-open">${type}</span>`;
+        if (type === 'Lastik Değişimi') {
+          typeBadge = `<span class="badge-closed">🛞 Lastik</span>`;
+        } else if (type === 'Periyodik Bakım') {
+          typeBadge = `<span class="badge-periodic">🛠️ Periyodik Bakım</span>`;
+        } else if (type === 'Araç Yıkama') {
+          typeBadge = `<span class="badge-open">🧼 Yıkama</span>`;
+        }
+
+        let cleanNotes = (r.Notlar || '').replace(/\[KM:\s*\d+\]\s*/i, '');
+
         return `<tr>
           <td>${i + 1}</td>
           <td>${r.Tarih || ''}</td>
           <td class="cell-plate">${r.Plaka || ''}</td>
-          <td><span class="${r['İşlem Türü'] === 'Lastik Değişimi' ? 'badge-closed' : 'badge-open'}">${r['İşlem Türü'] || ''}</span></td>
+          <td>${typeBadge}</td>
+          <td style="font-family: 'IBM Plex Mono', monospace; text-align: right; color: var(--accent2);">${kmStr}</td>
           <td class="cell-driver">${r.Personel || ''}</td>
           <td style="font-family: 'IBM Plex Mono', monospace; text-align: right;">${ucret}</td>
           <td>${firma}</td>
           <td>${statusBadge}</td>
-          <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${r.Notlar || ''}">${r.Notlar || ''}</td>
+          <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${cleanNotes}">${cleanNotes || '—'}</td>
         </tr>`;
       }).join('');
     }
@@ -2039,8 +2275,10 @@
       let totalExpense = 0;
       let totalWashExpense = 0;
       let totalTireExpense = 0;
+      let totalPeriodicExpense = 0;
       let washCount = 0;
       let tireCount = 0;
+      let periodicCount = 0;
       let unpaidExpense = 0;
       
       const vehicleStats = {};
@@ -2062,6 +2300,9 @@
         } else if (type === 'Lastik Değişimi') {
           totalTireExpense += ucret;
           tireCount++;
+        } else if (type === 'Periyodik Bakım') {
+          totalPeriodicExpense += ucret;
+          periodicCount++;
         }
         
         if (!vehicleStats[plate]) {
@@ -2070,6 +2311,8 @@
             washExpense: 0,
             tireCount: 0,
             tireExpense: 0,
+            periodicCount: 0,
+            periodicExpense: 0,
             totalExpense: 0
           };
         }
@@ -2081,6 +2324,9 @@
         } else if (type === 'Lastik Değişimi') {
           vehicleStats[plate].tireCount++;
           vehicleStats[plate].tireExpense += ucret;
+        } else if (type === 'Periyodik Bakım') {
+          vehicleStats[plate].periodicCount++;
+          vehicleStats[plate].periodicExpense += ucret;
         }
       });
       
@@ -2089,15 +2335,20 @@
         <div class="card">
           <div class="label">Toplam Harcama</div>
           <div class="val" style="color: var(--accent2);">${totalExpense.toLocaleString('tr-TR')} TL</div>
-          <div class="sub">${washCount + tireCount} işlem</div>
+          <div class="sub">${washCount + tireCount + periodicCount} işlem</div>
         </div>
         <div class="card">
-          <div class="label">Toplam Yıkama Masrafı</div>
-          <div class="val" style="color: var(--accent);">${totalWashExpense.toLocaleString('tr-TR')} TL</div>
+          <div class="label">Periyodik Bakım Masrafı</div>
+          <div class="val" style="color: var(--accent);">${totalPeriodicExpense.toLocaleString('tr-TR')} TL</div>
+          <div class="sub">${periodicCount} periyodik bakım</div>
+        </div>
+        <div class="card">
+          <div class="label">Yıkama Masrafı</div>
+          <div class="val" style="color: #38bdf8;">${totalWashExpense.toLocaleString('tr-TR')} TL</div>
           <div class="sub">${washCount} yıkama</div>
         </div>
         <div class="card">
-          <div class="label">Toplam Lastik Masrafı</div>
+          <div class="label">Lastik Masrafı</div>
           <div class="val" style="color: var(--danger);">${totalTireExpense.toLocaleString('tr-TR')} TL</div>
           <div class="sub">${tireCount} lastik değişimi</div>
         </div>
@@ -2114,7 +2365,7 @@
         .sort((a, b) => b.totalExpense - a.totalExpense);
         
       if (sortedStats.length === 0) {
-        body.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--muted); padding:2rem;">Kayıtlı harcama bulunamadı.</td></tr>';
+        body.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:2rem;">Kayıtlı harcama bulunamadı.</td></tr>';
         return;
       }
       
@@ -2125,6 +2376,8 @@
           <td style="text-align: right; font-family: 'IBM Plex Mono', monospace;">${s.washExpense ? s.washExpense.toLocaleString('tr-TR') + ' TL' : '—'}</td>
           <td style="text-align: center;">${s.tireCount}</td>
           <td style="text-align: right; font-family: 'IBM Plex Mono', monospace;">${s.tireExpense ? s.tireExpense.toLocaleString('tr-TR') + ' TL' : '—'}</td>
+          <td style="text-align: center;">${s.periodicCount}</td>
+          <td style="text-align: right; font-family: 'IBM Plex Mono', monospace;">${s.periodicExpense ? s.periodicExpense.toLocaleString('tr-TR') + ' TL' : '—'}</td>
           <td style="text-align: right; font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: var(--accent2);">${s.totalExpense ? s.totalExpense.toLocaleString('tr-TR') + ' TL' : '0 TL'}</td>
         </tr>`;
       }).join('');
@@ -2135,6 +2388,7 @@
       const plate = document.getElementById('maint-plate').value;
       const date = document.getElementById('maint-date').value;
       const driver = document.getElementById('maint-driver').value.trim();
+      const km = document.getElementById('maint-km').value.trim();
       const price = document.getElementById('maint-price').value.trim();
       const paymentStatus = document.getElementById('maint-payment-status').value;
       
@@ -2146,7 +2400,7 @@
         return;
       }
       const company = companySelect === 'Diğer' ? companyOther : companySelect;
-      const notes = document.getElementById('maint-notes').value.trim();
+      let notes = document.getElementById('maint-notes').value.trim();
       
       if (!plate) {
         alert('Lütfen bir plaka seçin!');
@@ -2164,6 +2418,15 @@
       const btn = document.querySelector('#page-maint button.btn-primary');
       if (btn) btn.disabled = true;
       
+      // Ensure KM is safely preserved in notes if not already there
+      let fullNotes = notes;
+      if (km) {
+        const kmTag = `[KM: ${km}]`;
+        if (!fullNotes.includes(kmTag)) {
+          fullNotes = fullNotes ? `${kmTag} ${fullNotes}` : kmTag;
+        }
+      }
+      
       const payload = {
         action: 'log_maintenance',
         id: Date.now(),
@@ -2171,10 +2434,11 @@
         plate: plate,
         date: date,
         driver: driver,
+        km: km ? Number(km) : '',
         price: price ? Number(price) : 0,
         company: company,
         paymentStatus: paymentStatus,
-        notes: notes,
+        notes: fullNotes,
         deviceId: getDeviceId()
       };
       
@@ -2183,6 +2447,7 @@
       try {
         await send(payload);
         showToast('Kayıt başarıyla kaydedildi.', 'ok');
+        document.getElementById('maint-km').value = '';
         document.getElementById('maint-price').value = '';
         document.getElementById('maint-company').value = '';
         document.getElementById('maint-payment-status').value = 'Ödendi';
@@ -2328,6 +2593,101 @@
         <div class="card"><div class="label">Günlük Ort. KM</div><div class="val">${Math.round(totalKm/activeDays)}</div><div class="sub">${activeDays} aktif gün</div></div>
         <div class="card"><div class="label">Amaçsız Kayıt</div><div class="val" style="color:var(--color-text-warning)">${amacsiz}</div><div class="sub">amaç girilmemiş</div></div>
       `;
+
+      // Vehicle Specific Maintenance Cards (when an individual vehicle is selected)
+      const selectedPlate = document.getElementById("filterPlaka").value;
+      const vMaintCards = document.getElementById("dash-vehicle-maint-cards");
+      if (vMaintCards) {
+        if (selectedPlate !== "all") {
+          const st = getVehicleMaintStatus(selectedPlate);
+          const curKmText = st.currentKm ? st.currentKm.toLocaleString('tr-TR') + ' KM' : '—';
+          const lastDateText = st.lastMaintDate || 'Kayıt Yok';
+          const lastKmText = st.lastMaintKm ? st.lastMaintKm.toLocaleString('tr-TR') + ' KM' : '—';
+          const diffText = st.kmSinceLastMaint !== null ? st.kmSinceLastMaint.toLocaleString('tr-TR') + ' KM' : '—';
+          const statusColor = st.status === 'due' ? 'var(--danger)' : (st.status === 'warning' ? 'var(--accent)' : 'var(--accent2)');
+
+          vMaintCards.style.display = "grid";
+          vMaintCards.className = "cards";
+          vMaintCards.style.gridTemplateColumns = "repeat(auto-fit, minmax(200px, 1fr))";
+          vMaintCards.innerHTML = `
+            <div class="card" style="border-left: 3px solid var(--accent2);">
+              <div class="label">GÜNCEL KM</div>
+              <div class="val" style="color:var(--accent2);">${curKmText}</div>
+              <div class="sub">${selectedPlate} son sayaç</div>
+            </div>
+            <div class="card" style="border-left: 3px solid var(--accent);">
+              <div class="label">EN SON BAKIM TARİHİ</div>
+              <div class="val" style="font-size:18px;">${lastDateText}</div>
+              <div class="sub">Periyodik bakım kaydı</div>
+            </div>
+            <div class="card" style="border-left: 3px solid #38bdf8;">
+              <div class="label">EN SON BAKIM KM</div>
+              <div class="val" style="color:#38bdf8;">${lastKmText}</div>
+              <div class="sub">Bakım yapıldığı sayaç</div>
+            </div>
+            <div class="card" style="border-left: 3px solid ${statusColor};">
+              <div class="label">BAKIMDAN BERİ / DURUM</div>
+              <div class="val" style="color:${statusColor}; font-size:16px;">${diffText}</div>
+              <div class="sub" style="margin-top:4px;">${st.statusBadge}</div>
+            </div>
+          `;
+        } else {
+          vMaintCards.style.display = "none";
+        }
+      }
+
+      // Fleet Maintenance Table
+      const fleetBody = document.getElementById("dash-fleet-maint-body");
+      const fleetBadge = document.getElementById("dash-fleet-maint-summary-badge");
+      if (fleetBody) {
+        const trackedVehicles = VEHICLES.filter(v => v.Takip !== 'HAYIR' && v.Takip !== 'False' && v.Takip !== false && v.Takip !== 'no' && (selectedPlate === 'all' || v.Plaka === selectedPlate));
+        
+        let okCount = 0, warnCount = 0, dueCount = 0;
+
+        if (trackedVehicles.length === 0) {
+          fleetBody.innerHTML = '<tr><td colspan="8" style="text-align:center; color:var(--muted); padding:2rem;">Kayıtlı araç bulunamadı.</td></tr>';
+        } else {
+          fleetBody.innerHTML = trackedVehicles.map(v => {
+            const st = getVehicleMaintStatus(v.Plaka);
+            if (st.status === 'ok') okCount++;
+            else if (st.status === 'warning') warnCount++;
+            else if (st.status === 'due') dueCount++;
+
+            const curKmStr = st.currentKm ? st.currentKm.toLocaleString('tr-TR') + ' km' : '—';
+            const maintDateStr = st.lastMaintDate || '—';
+            const maintKmStr = st.lastMaintKm ? st.lastMaintKm.toLocaleString('tr-TR') + ' km' : '—';
+            const diffStr = st.kmSinceLastMaint !== null ? st.kmSinceLastMaint.toLocaleString('tr-TR') + ' km' : '—';
+
+            let progHtml = '';
+            if (st.kmSinceLastMaint !== null) {
+              const pct = Math.min(100, Math.round((st.kmSinceLastMaint / PERIODIC_INTERVAL_KM) * 100));
+              const barColor = st.status === 'due' ? 'var(--danger)' : (st.status === 'warning' ? 'var(--accent)' : 'var(--accent2)');
+              progHtml = `<span class="maint-prog-track"><span class="maint-prog-bar" style="width:${pct}%;background:${barColor};"></span></span>`;
+            }
+
+            return `<tr>
+              <td class="cell-plate" style="font-weight:600;">${v.Plaka}</td>
+              <td style="font-size:12px; color:var(--muted); max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${v.Model || ''}">${v.Model || '—'}</td>
+              <td style="font-family:'IBM Plex Mono',monospace; text-align:right; font-weight:600; color:var(--accent2);">${curKmStr}</td>
+              <td style="text-align:center; font-size:12px;">${maintDateStr}</td>
+              <td style="font-family:'IBM Plex Mono',monospace; text-align:right; font-size:12px; color:#38bdf8;">${maintKmStr}</td>
+              <td style="font-family:'IBM Plex Mono',monospace; text-align:right; font-size:12px;">${diffStr}</td>
+              <td style="text-align:center;">${progHtml}${st.statusBadge}</td>
+              <td style="text-align:center;">
+                <button type="button" class="btn-ghost" style="padding:.25rem .55rem; font-size:.72rem; border-color:var(--accent); color:var(--accent); white-space:nowrap;" onclick="openMaintenanceForVehicle('${v.Plaka}')">🛠️ Bakım Gir</button>
+              </td>
+            </tr>`;
+          }).join('');
+        }
+
+        if (fleetBadge) {
+          fleetBadge.innerHTML = `
+            <span style="color:var(--accent2);margin-right:8px;">🟢 ${okCount} Normal</span>
+            <span style="color:var(--accent);margin-right:8px;">🟡 ${warnCount} Yaklaşan</span>
+            <span style="color:var(--danger);">🔴 ${dueCount} Bakım Zamanı</span>
+          `;
+        }
+      }
 
       // Determine timeline grouping
       let groupVal = document.getElementById("filterGroup").value;
@@ -2479,6 +2839,23 @@
         return ch >= 15;
       }).forEach(r=>{
         if(Number(r['KM Farkı']) > 80) alerts.push({tip:'Gece/akşam uzun sefer',detay:`${r.Plaka} — ${r.Sürücü}, çıkış ${r['Çıkış Saati']} tarih ${r.Tarih}, ${r['KM Farkı']} km — ertesi gün dönüş yaşanmış olabilir.`});
+      });
+
+      // Periyodik Bakım Uyarıları
+      const alertVehicles = VEHICLES.filter(v => v.Takip !== 'HAYIR' && v.Takip !== 'False' && v.Takip !== false && v.Takip !== 'no' && (selectedPlate === 'all' || v.Plaka === selectedPlate));
+      alertVehicles.forEach(v => {
+        const st = getVehicleMaintStatus(v.Plaka);
+        if (st.status === 'due') {
+          alerts.push({
+            tip: '🚨 Periyodik Bakım Zamanı Geldi / Geçti',
+            detay: `${v.Plaka} (${v.Model}) — Güncel Sayaç: ${st.currentKm ? st.currentKm.toLocaleString('tr-TR') + ' KM' : '—'}, Son Bakım: ${st.lastMaintKm ? st.lastMaintKm.toLocaleString('tr-TR') + ' KM' : 'Kayıt Yok'}. 10.000 KM periyodik bakım aralığı aşıldı!`
+          });
+        } else if (st.status === 'warning') {
+          alerts.push({
+            tip: '⚠️ Periyodik Bakım Yaklaştı',
+            detay: `${v.Plaka} (${v.Model}) — Bakıma ${st.remainingKm.toLocaleString('tr-TR')} KM kaldı.`
+          });
+        }
       });
 
       const alertsBox = document.getElementById('dash-alerts');
