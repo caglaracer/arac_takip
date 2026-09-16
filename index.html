@@ -688,67 +688,63 @@
       color: var(--accent2);
     }
 
+    .badge-open, .badge-closed, .badge-danger, .badge-warning, .badge-periodic {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      font-size: .68rem;
+      padding: .2rem .55rem;
+      border-radius: 4px;
+      line-height: 1.2;
+    }
+
     .badge-open {
       background: rgba(64, 212, 160, .12);
       color: var(--accent2);
       border: 1px solid var(--accent2);
-      font-size: .65rem;
-      padding: .12rem .45rem;
-      border-radius: 2px;
     }
 
     .badge-closed {
       background: rgba(100, 100, 100, .1);
       color: var(--muted2);
       border: 1px solid var(--border);
-      font-size: .65rem;
-      padding: .12rem .45rem;
-      border-radius: 2px;
     }
 
     .badge-danger {
       background: rgba(224, 85, 85, .12);
       color: var(--danger);
       border: 1px solid var(--danger);
-      font-size: .65rem;
-      padding: .12rem .45rem;
-      border-radius: 2px;
     }
 
     .badge-warning {
       background: rgba(240, 192, 64, .15);
       color: var(--accent);
       border: 1px solid var(--accent);
-      font-size: .65rem;
-      padding: .12rem .45rem;
-      border-radius: 2px;
     }
 
     .badge-periodic {
       background: rgba(240, 192, 64, .15);
       color: var(--accent);
       border: 1px solid var(--accent);
-      font-size: .65rem;
-      padding: .12rem .45rem;
-      border-radius: 2px;
     }
 
     .maint-prog-track {
       width: 100%;
-      max-width: 80px;
-      height: 6px;
-      background: var(--border2);
-      border-radius: 3px;
+      max-width: 110px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 2px;
       overflow: hidden;
-      display: inline-block;
-      vertical-align: middle;
-      margin-right: 6px;
+      display: block;
+      margin: 0 auto;
     }
 
     .maint-prog-bar {
       height: 100%;
-      border-radius: 3px;
+      border-radius: 2px;
       transition: width 0.3s ease;
+      display: block;
     }
 
     .empty-state {
@@ -1960,7 +1956,9 @@
         return db - da;
       });
 
-      const latest = sorted[0];
+      // Öncelikle KM kaydı bulunan en güncel bakımı bul, yoksa en son kaydı al
+      const withKm = sorted.filter(r => extractKmFromMaint(r) !== null);
+      const latest = withKm.length > 0 ? withKm[0] : sorted[0];
       const km = extractKmFromMaint(latest);
       return {
         record: latest,
@@ -2662,7 +2660,7 @@
             if (st.kmSinceLastMaint !== null) {
               const pct = Math.min(100, Math.round((st.kmSinceLastMaint / PERIODIC_INTERVAL_KM) * 100));
               const barColor = st.status === 'due' ? 'var(--danger)' : (st.status === 'warning' ? 'var(--accent)' : 'var(--accent2)');
-              progHtml = `<span class="maint-prog-track"><span class="maint-prog-bar" style="width:${pct}%;background:${barColor};"></span></span>`;
+              progHtml = `<div class="maint-prog-track" title="Bakım Periyodu: %${pct}"><div class="maint-prog-bar" style="width:${pct}%;background:${barColor};"></div></div>`;
             }
 
             return `<tr>
@@ -2672,8 +2670,13 @@
               <td style="text-align:center; font-size:12px;">${maintDateStr}</td>
               <td style="font-family:'IBM Plex Mono',monospace; text-align:right; font-size:12px; color:#38bdf8;">${maintKmStr}</td>
               <td style="font-family:'IBM Plex Mono',monospace; text-align:right; font-size:12px;">${diffStr}</td>
-              <td style="text-align:center;">${progHtml}${st.statusBadge}</td>
-              <td style="text-align:center;">
+              <td style="text-align:center; vertical-align:middle; min-width:160px;">
+                <div style="display:inline-flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;">
+                  ${st.statusBadge}
+                  ${progHtml}
+                </div>
+              </td>
+              <td style="text-align:center; vertical-align:middle;">
                 <button type="button" class="btn-ghost" style="padding:.25rem .55rem; font-size:.72rem; border-color:var(--accent); color:var(--accent); white-space:nowrap;" onclick="openMaintenanceForVehicle('${v.Plaka}')">🛠️ Bakım Gir</button>
               </td>
             </tr>`;

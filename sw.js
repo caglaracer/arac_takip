@@ -1,4 +1,4 @@
-const CACHE_NAME = 'arac-takip-v2';
+const CACHE_NAME = 'arac-takip-v3';
 const STATIC_ASSETS = [
   './',
   './index.html',
