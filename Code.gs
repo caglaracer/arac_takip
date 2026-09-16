@@ -247,12 +247,20 @@ function doPost(e) {
       formattedDate = p[2] + '.' + p[1] + '.' + p[0]; // dd.MM.yyyy
     }
     
+    var maintKm = params.km;
+    if ((maintKm === undefined || maintKm === "" || maintKm === null) && params.notes) {
+      var match = params.notes.toString().match(/\[KM:\s*(\d+)\]|KM\s*[:=]?\s*(\d+)|(\d{5,6})\s*km/i);
+      if (match) {
+        maintKm = match[1] || match[2] || match[3];
+      }
+    }
+    
     var maintObj = {
       "ID": params.id,
       "Tarih": formattedDate,
       "Plaka": params.plate,
       "İşlem Türü": params.type,
-      "KM": params.km !== undefined && params.km !== "" ? Number(params.km) : "",
+      "KM": maintKm !== undefined && maintKm !== "" ? Number(maintKm) : "",
       "Personel": params.driver,
       "Ücret": params.price !== undefined && params.price !== "" ? Number(params.price) : "",
       "Yıkama Firması": params.company || "",

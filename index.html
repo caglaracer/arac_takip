@@ -1256,7 +1256,7 @@
         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:0.9rem;">
           <div>
             <h3 style="font-size:15px; font-weight:600; color:var(--text); letter-spacing:.5px;">🛠️ ARAÇ GÜNCEL KM VE PERİYODİK BAKIM TAKİBİ</h3>
-            <div style="font-size:12px; color:var(--muted); margin-top:2px;">Filo genelinde güncel sayaçlar, en son bakım geçmişi ve sonraki bakıma kalan mesafe (Periyot: 10.000 KM)</div>
+            <div style="font-size:12px; color:var(--muted); margin-top:2px;">Filo genelinde güncel sayaçlar, en son bakım geçmişi ve sonraki bakıma kalan mesafe (Periyot: 15.000 KM veya 6 Ay)</div>
           </div>
           <div id="dash-fleet-maint-summary-badge" style="font-size:12px; font-family:'IBM Plex Mono',monospace;"></div>
         </div>
@@ -1971,7 +1971,10 @@
       };
     }
 
-    const PERIODIC_INTERVAL_KM = 10000;
+    const PERIODIC_INTERVAL_KM = 15000;
+    const PERIODIC_WARN_KM = 1000;
+    const PERIODIC_MONTHS = 6;
+    const PERIODIC_WARN_DAYS = 30;
 
     function getVehicleMaintStatus(plate) {
       const currentKm = getVehicleCurrentKm(plate);
@@ -1985,6 +1988,8 @@
           lastMaintKm: null,
           kmSinceLastMaint: null,
           remainingKm: null,
+          remainingDays: null,
+          daysSince: null,
           status: isDue ? 'due' : 'unknown',
           statusText: isDue ? 'Bakım Gerekli' : 'Kayıt Yok',
           statusBadge: isDue 
@@ -1994,20 +1999,65 @@
       }
 
       const kmDiff = Math.max(0, currentKm - lastMaint.km);
-      const remaining = PERIODIC_INTERVAL_KM - kmDiff;
+      const remainingKm = PERIODIC_INTERVAL_KM - kmDiff;
+      const kmDue = remainingKm <= 0;
+      const kmWarn = remainingKm > 0 && remainingKm <= PERIODIC_WARN_KM;
+
+      // Süre Kontrolü (6 Ay)
+      let timeDue = false;
+      let timeWarn = false;
+      let remainingDays = null;
+      let daysSince = null;
+
+      if (lastMaint.date && lastMaint.date !== '—') {
+        const lastDate = parseDateStr(lastMaint.date);
+        if (lastDate) {
+          const now = new Date();
+          daysSince = Math.floor((now - lastDate) / (1000 * 60 * 60 * 24));
+          const targetDate = new Date(lastDate);
+          targetDate.setMonth(targetDate.getMonth() + PERIODIC_MONTHS);
+          remainingDays = Math.ceil((targetDate - now) / (1000 * 60 * 60 * 24));
+
+          if (remainingDays <= 0) {
+            timeDue = true;
+          } else if (remainingDays <= PERIODIC_WARN_DAYS) {
+            timeWarn = true;
+          }
+        }
+      }
 
       let status = 'ok';
       let statusText = 'Normal';
-      let statusBadge = `<span class="badge-open">🟢 Normal (${remaining.toLocaleString('tr-TR')} km kaldı)</span>`;
+      let statusBadge = '';
 
-      if (remaining <= 0) {
+      if (kmDue || timeDue) {
         status = 'due';
-        statusText = `${Math.abs(remaining).toLocaleString('tr-TR')} KM Aşıldı`;
-        statusBadge = `<span class="badge-danger">🔴 Bakım Zamanı (${Math.abs(remaining).toLocaleString('tr-TR')} km aşıldı)</span>`;
-      } else if (remaining <= 1500) {
+        if (kmDue && timeDue) {
+          statusText = `${Math.abs(remainingKm).toLocaleString('tr-TR')} KM & 6 Ay Aşıldı`;
+          statusBadge = `<span class="badge-danger">🔴 Bakım Zamanı (${Math.abs(remainingKm).toLocaleString('tr-TR')} km & 6 ay aşıldı)</span>`;
+        } else if (kmDue) {
+          statusText = `${Math.abs(remainingKm).toLocaleString('tr-TR')} KM Aşıldı`;
+          statusBadge = `<span class="badge-danger">🔴 Bakım Zamanı (${Math.abs(remainingKm).toLocaleString('tr-TR')} km aşıldı)</span>`;
+        } else {
+          statusText = `6 Ay Doldu (${Math.abs(remainingDays)} gün geçti)`;
+          statusBadge = `<span class="badge-danger">🔴 Bakım Zamanı (6 ay doldu)</span>`;
+        }
+      } else if (kmWarn || timeWarn) {
         status = 'warning';
-        statusText = `${remaining.toLocaleString('tr-TR')} KM Kaldı`;
-        statusBadge = `<span class="badge-warning">🟡 Yaklaşıyor (${remaining.toLocaleString('tr-TR')} km kaldı)</span>`;
+        if (kmWarn && timeWarn) {
+          statusText = `${remainingKm.toLocaleString('tr-TR')} KM / ${remainingDays} Gün Kaldı`;
+          statusBadge = `<span class="badge-warning">🟡 Yaklaşıyor (${remainingKm.toLocaleString('tr-TR')} km / ${remainingDays} gün kaldı)</span>`;
+        } else if (kmWarn) {
+          statusText = `${remainingKm.toLocaleString('tr-TR')} KM Kaldı`;
+          statusBadge = `<span class="badge-warning">🟡 Yaklaşıyor (${remainingKm.toLocaleString('tr-TR')} km kaldı)</span>`;
+        } else {
+          statusText = `${remainingDays} Gün Kaldı`;
+          statusBadge = `<span class="badge-warning">🟡 Yaklaşıyor (${remainingDays} gün kaldı)</span>`;
+        }
+      } else {
+        status = 'ok';
+        statusText = 'Normal';
+        statusBadge = `<span class="badge-open">🟢 Normal (${remainingKm.toLocaleString('tr-TR')} km kaldı)</span>`;
       }
 
       return {
@@ -2015,7 +2065,9 @@
         lastMaintDate: lastMaint.date,
         lastMaintKm: lastMaint.km,
         kmSinceLastMaint: kmDiff,
-        remainingKm: remaining,
+        remainingKm: remainingKm,
+        remainingDays: remainingDays,
+        daysSince: daysSince,
         status: status,
         statusText: statusText,
         statusBadge: statusBadge
@@ -2386,7 +2438,7 @@
       const plate = document.getElementById('maint-plate').value;
       const date = document.getElementById('maint-date').value;
       const driver = document.getElementById('maint-driver').value.trim();
-      const km = document.getElementById('maint-km').value.trim();
+      let km = document.getElementById('maint-km').value.trim();
       const price = document.getElementById('maint-price').value.trim();
       const paymentStatus = document.getElementById('maint-payment-status').value;
       
@@ -2410,6 +2462,24 @@
       }
       if (!driver) {
         alert('Lütfen personel/sürücü ismini girin!');
+        return;
+      }
+
+      // Eğer KM alanı boş bırakılmış ama notlara yazılmışsa otomatik ayıkla
+      if (!km && notes) {
+        const match = notes.match(/\[KM:\s*(\d+)\]|KM\s*[:=]?\s*(\d+)|(\d{5,6})\s*km/i);
+        if (match) {
+          km = match[1] || match[2] || match[3];
+          const kmInput = document.getElementById('maint-km');
+          if (kmInput) kmInput.value = km;
+        }
+      }
+
+      // Periyodik bakımda KM girilmesi zorunlu olsun
+      if (type === 'Periyodik Bakım' && !km) {
+        alert('Lütfen bakımın yapıldığı sayaç kilometresini (KM) girin!');
+        const kmInput = document.getElementById('maint-km');
+        if (kmInput) kmInput.focus();
         return;
       }
       
@@ -2482,9 +2552,20 @@
 
     function parseDateStr(s) {
       if (!s) return null;
-      const parts = s.split('.');
-      if (parts.length !== 3) return null;
-      return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]), 0, 0, 0, 0);
+      if (s instanceof Date) return s;
+      s = s.toString().trim();
+      if (s.includes('.')) {
+        const parts = s.split('.');
+        if (parts.length >= 3) return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+      } else if (s.includes('/')) {
+        const parts = s.split('/');
+        if (parts.length >= 3) return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+      } else if (s.includes('-')) {
+        const parts = s.split('-');
+        if (parts.length >= 3) return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      }
+      const d = new Date(s);
+      return isNaN(d.getTime()) ? null : d;
     }
 
     function onDateFilterChange() {
@@ -2658,9 +2739,11 @@
 
             let progHtml = '';
             if (st.kmSinceLastMaint !== null) {
-              const pct = Math.min(100, Math.round((st.kmSinceLastMaint / PERIODIC_INTERVAL_KM) * 100));
+              const pctKm = Math.min(100, Math.max(0, Math.round((st.kmSinceLastMaint / PERIODIC_INTERVAL_KM) * 100)));
+              const pctTime = (st.daysSince && st.daysSince > 0) ? Math.min(100, Math.max(0, Math.round((st.daysSince / (PERIODIC_MONTHS * 30.5)) * 100))) : 0;
+              const pct = Math.max(pctKm, pctTime);
               const barColor = st.status === 'due' ? 'var(--danger)' : (st.status === 'warning' ? 'var(--accent)' : 'var(--accent2)');
-              progHtml = `<div class="maint-prog-track" title="Bakım Periyodu: %${pct}"><div class="maint-prog-bar" style="width:${pct}%;background:${barColor};"></div></div>`;
+              progHtml = `<div class="maint-prog-track" title="KM İlerlemesi: %${pctKm}, 6 Aylık Süre İlerlemesi: %${pctTime}"><div class="maint-prog-bar" style="width:${pct}%;background:${barColor};"></div></div>`;
             }
 
             return `<tr>
@@ -2844,19 +2927,19 @@
         if(Number(r['KM Farkı']) > 80) alerts.push({tip:'Gece/akşam uzun sefer',detay:`${r.Plaka} — ${r.Sürücü}, çıkış ${r['Çıkış Saati']} tarih ${r.Tarih}, ${r['KM Farkı']} km — ertesi gün dönüş yaşanmış olabilir.`});
       });
 
-      // Periyodik Bakım Uyarıları
+      // Periyodik Bakım Uyarıları (15.000 KM veya 6 Ay Kuralı)
       const alertVehicles = VEHICLES.filter(v => v.Takip !== 'HAYIR' && v.Takip !== 'False' && v.Takip !== false && v.Takip !== 'no' && (selectedPlate === 'all' || v.Plaka === selectedPlate));
       alertVehicles.forEach(v => {
         const st = getVehicleMaintStatus(v.Plaka);
         if (st.status === 'due') {
           alerts.push({
             tip: '🚨 Periyodik Bakım Zamanı Geldi / Geçti',
-            detay: `${v.Plaka} (${v.Model}) — Güncel Sayaç: ${st.currentKm ? st.currentKm.toLocaleString('tr-TR') + ' KM' : '—'}, Son Bakım: ${st.lastMaintKm ? st.lastMaintKm.toLocaleString('tr-TR') + ' KM' : 'Kayıt Yok'}. 10.000 KM periyodik bakım aralığı aşıldı!`
+            detay: `${v.Plaka} (${v.Model}) — Güncel Sayaç: ${st.currentKm ? st.currentKm.toLocaleString('tr-TR') + ' KM' : '—'}, Son Bakım: ${st.lastMaintKm ? st.lastMaintKm.toLocaleString('tr-TR') + ' KM' : 'Kayıt Yok'} (${st.lastMaintDate || 'Tarih Yok'}). ${st.statusText}! 15.000 KM veya 6 aylık bakım periyodu aşıldı.`
           });
         } else if (st.status === 'warning') {
           alerts.push({
             tip: '⚠️ Periyodik Bakım Yaklaştı',
-            detay: `${v.Plaka} (${v.Model}) — Bakıma ${st.remainingKm.toLocaleString('tr-TR')} KM kaldı.`
+            detay: `${v.Plaka} (${v.Model}) — ${st.statusText}. 15.000 KM veya 6 aylık bakım periyodu yaklaştı.`
           });
         }
       });
