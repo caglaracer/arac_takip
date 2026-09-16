@@ -354,3 +354,42 @@ function doPost(e) {
   return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "Bilinmeyen action: " + params.action }))
     .setMimeType(ContentService.MimeType.JSON);
 }
+
+// =========================================================================
+// 3. DOĞRUDAN ÇALIŞTIRMA YARDIMCISI (APPS SCRIPT İÇİNDEN "ÇALIŞTIR" DEMEK İÇİN)
+// =========================================================================
+/**
+ * Apps Script editöründe üstteki fonksiyon listesinden "tablolariGuncelle" seçip
+ * "Çalıştır" (Run) butonuna basarak KM sütununu anında açabilirsiniz.
+ */
+function tablolariGuncelle() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getSheetSafe(ss, "BAKIM_KAYITLARI");
+  
+  if (!sheet) {
+    sheet = ss.insertSheet("BAKIM_KAYITLARI");
+    sheet.appendRow([
+      "ID", "Tarih", "Plaka", "İşlem Türü", "KM", 
+      "Personel", "Ücret", "Yıkama Firması", "Ödeme Durumu", 
+      "Notlar", "Cihaz ID", "Kayıt Tarihi"
+    ]);
+    Logger.log("BAKIM_KAYITLARI sayfası oluşturuldu ve KM sütunu eklendi.");
+    return "BAKIM_KAYITLARI sayfası ve KM sütunu oluşturuldu.";
+  }
+  
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0].map(function(h) { return h.toString().trim(); });
+  
+  if (headers.indexOf("KM") === -1) {
+    var personCol = headers.indexOf("Personel");
+    if (personCol === -1) personCol = headers.indexOf("Ücret");
+    var insertIdx = personCol === -1 ? headers.length : personCol;
+    sheet.insertColumnBefore(insertIdx + 1);
+    sheet.getRange(1, insertIdx + 1).setValue("KM");
+    Logger.log("KM sütunu başarıyla eklendi!");
+    return "KM sütunu başarıyla eklendi!";
+  } else {
+    Logger.log("KM sütunu zaten mevcut.");
+    return "KM sütunu zaten mevcut.";
+  }
+}
