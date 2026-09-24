@@ -342,6 +342,11 @@ function doPost(e) {
         var checkoutKm = data[i][checkoutKmColIdx];
         var diff = Number(params.returnKm) - Number(checkoutKm);
         
+        if (diff < 0) {
+          return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "HATA: Dönüş KM (" + params.returnKm + "), çıkış KM'den (" + checkoutKm + ") düşük olamaz!" }))
+            .setMimeType(ContentService.MimeType.JSON);
+        }
+        
         var updateObj = {
           "Dönüş KM": params.returnKm,
           "Dönüş Saati": params.returnTime,
