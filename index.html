@@ -1507,6 +1507,23 @@
       }
     }
 
+    const DEFAULT_FLEET = {
+      ok: true,
+      vehicles: [
+        { Plaka: "06 BFK 860", Model: "PASSAT 1.4 TSI PS COMFORTLİNE TİPTR", Lokasyon: "Ankara", Takip: "EVET" },
+        { Plaka: "06 BOS 072", Model: "PASSAT 1.6 TDI SCR 120 PS BUSİNESS DSG", Lokasyon: "Ankara", Takip: "EVET" },
+        { Plaka: "35 CEB 291", Model: "RENAULT MEGANE TCE 1.4 BENZİN", Lokasyon: "Ankara", Takip: "EVET" }
+      ],
+      records: [],
+      drivers: [
+        { "Ad Soyad": "Çağrı Deniz" },
+        { "Ad Soyad": "Serkan Ünal" },
+        { "Ad Soyad": "Batuhan Albayrak" }
+      ],
+      maintenanceRecords: [],
+      companies: []
+    };
+
     function initDataFromCache() {
       try {
         const raw = localStorage.getItem(CACHE_KEY);
@@ -1521,7 +1538,10 @@
       } catch (e) {
         console.warn('[Cache] Önbellek okunamadı:', e);
       }
-      return false;
+      // Önbellek henüz oluşmamışsa kullanıcıyı gri kutularda bekletme, hazır araçları anında aç!
+      applyData(DEFAULT_FLEET);
+      setSync('cached', 'Hazır');
+      return true;
     }
 
     function renderSkeleton() {
@@ -1544,9 +1564,15 @@
       } else {
         setSync('syncing', 'Güncelleniyor...');
       }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 sn sonra kilitlenmeyi engelle
+
       try {
-        const r = await fetch(SCRIPT_URL); const d = await r.json();
-        if (d.ok) {
+        const r = await fetch(SCRIPT_URL, { signal: controller.signal });
+        clearTimeout(timeoutId);
+        const d = await r.json();
+        if (d && d.ok) {
           try {
             localStorage.setItem(CACHE_KEY, JSON.stringify(d));
           } catch(err) {
@@ -1558,8 +1584,12 @@
           setSync('err', 'Hata');
         }
       } catch (e) { 
+        clearTimeout(timeoutId);
         const hasCache = !!localStorage.getItem(CACHE_KEY);
-        setSync('err', hasCache ? 'Çevrimdışı (Önbellek)' : 'Bağlantı Yok'); 
+        setSync('err', hasCache ? 'Çevrimdışı (Önbellek)' : 'Çevrimdışı (Hazır)');
+        if (!VEHICLES || VEHICLES.length === 0) {
+          applyData(DEFAULT_FLEET);
+        }
       }
     }
 
@@ -1786,12 +1816,34 @@
       };
       localStorage.setItem('vts_driver_name', window.selectedDriver);
       
+      // 1. İyimser Güncelleme (Optimistic UI): Bekletmeden anında zimmete al
+      const tempRecord = {
+        ID: payload.id,
+        Tarih: payload.date,
+        Plaka: payload.plate,
+        'Araç Modeli': payload.model,
+        Sürücü: payload.driver,
+        'Çıkış KM': payload.checkoutKm,
+        'Çıkış Saati': payload.checkoutTime,
+        Durum: 'AÇIK'
+      };
+      RECORDS.unshift(tempRecord);
+      closeOverlay('m-checkout');
+      renderQR();
+
+      // 2. Arka planda sunucuya gönder
       try {
         await send(payload);
-        closeOverlay('m-checkout');
-        loadRecords();
+        try {
+          const raw = localStorage.getItem(CACHE_KEY);
+          if (raw) {
+            const c = JSON.parse(raw);
+            c.records = RECORDS;
+            localStorage.setItem(CACHE_KEY, JSON.stringify(c));
+          }
+        } catch(e) {}
       } catch (err) {
-        alert('Hata oluştu, lütfen tekrar deneyin.');
+        console.warn('[Checkout] Sunucuya aktarım gecikti:', err);
       } finally {
         if (btn) btn.disabled = false;
       }
@@ -1832,20 +1884,35 @@
       if (btn) btn.disabled = true;
       
       const returner = window.currentReturnerName || localStorage.getItem('vts_driver_name') || activeRecord.Sürücü;
+      const rTime = new Date().toLocaleTimeString('tr-TR');
 
+      // 1. İyimser Güncelleme (Optimistic UI): Bekletmeden anında teslim al / müsait yap
+      activeRecord.Durum = 'KAPALI';
+      activeRecord['Dönüş KM'] = km;
+      activeRecord['Dönüş Saati'] = rTime;
+      closeOverlay('m-return');
+      renderQR();
+
+      // 2. Arka planda sunucuya gönder
       try {
         await send({ 
           action: 'return', 
           id: activeRecord.ID, 
           returnKm: km, 
-          returnTime: new Date().toLocaleTimeString('tr-TR'), 
+          returnTime: rTime, 
           returnDevice: getDeviceId(), 
           returnDriverName: returner 
         });
-        closeOverlay('m-return');
-        loadRecords();
+        try {
+          const raw = localStorage.getItem(CACHE_KEY);
+          if (raw) {
+            const c = JSON.parse(raw);
+            c.records = RECORDS;
+            localStorage.setItem(CACHE_KEY, JSON.stringify(c));
+          }
+        } catch(e) {}
       } catch (err) {
-        alert('Hata oluştu, lütfen tekrar deneyin.');
+        console.warn('[Return] Sunucuya aktarım gecikti:', err);
       } finally {
         if (btn) btn.disabled = false;
       }
@@ -2954,15 +3021,10 @@
     checkDeviceRecovery();
     updateDriverProfileUI();
 
-    // SWR (Stale-While-Revalidate) Başlatma
-    const hasCache = initDataFromCache();
-    if (!hasCache) {
-      renderSkeleton();
-      loadRecords(false);
-    } else {
-      // Önbellekten hemen yüklendi, arka planda güncel veriyi çek
-      loadRecords(true);
-    }
+    // SWR (Stale-While-Revalidate) Başlatma - Anında Açılış
+    initDataFromCache();
+    // Arka planda Google Sheets ile sessizce senkronize et (kullanıcıyı asla bloklamaz)
+    loadRecords(true);
 
     // Service Worker Kaydı (PWA Çevrimdışı / Hızlı Başlangıç)
     if ('serviceWorker' in navigator) {
