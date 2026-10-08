@@ -1207,8 +1207,10 @@
           </thead>
           <tbody id="admin-rec-body"></tbody>
         </table>
+      <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:1.5rem;">
+        <button class="btn-red" onclick="exportCSV()">⬇ CSV İndir</button>
+        <button class="btn-primary" style="background:#202530; border:1px solid var(--accent); color:var(--accent); font-weight:600;" onclick="triggerCleanDuplicates()">🧹 Mükerrer Kayıtları Temizle</button>
       </div>
-      <button class="btn-red" style="margin-top:1.5rem;" onclick="exportCSV()">⬇ CSV İndir</button>
     </div>
   </div>
 
@@ -1258,7 +1260,12 @@
             <h3 style="font-size:15px; font-weight:600; color:var(--text); letter-spacing:.5px;">🛠️ ARAÇ GÜNCEL KM VE PERİYODİK BAKIM TAKİBİ</h3>
             <div style="font-size:12px; color:var(--muted); margin-top:2px;">Filo genelinde güncel sayaçlar, en son bakım geçmişi ve sonraki bakıma kalan mesafe (Periyot: 15.000 KM veya 6 Ay)</div>
           </div>
-          <div id="dash-fleet-maint-summary-badge" style="font-size:12px; font-family:'IBM Plex Mono',monospace;"></div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <div id="dash-fleet-maint-summary-badge" style="font-size:12px; font-family:'IBM Plex Mono',monospace;"></div>
+            <button onclick="forceRefreshData(this)" id="btn-force-refresh-maint" style="background:rgba(255,255,255,0.08); border:1px solid var(--border); color:var(--text); padding:4px 10px; border-radius:6px; font-size:11px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:all .2s;" title="Google Sheets'ten en güncel verileri anında çek">
+              🔄 Canlı Veriyi Çek
+            </button>
+          </div>
         </div>
         <div class="tbl-wrap" style="max-height: 380px; overflow-y: auto;">
           <table class="rtbl">
@@ -1485,6 +1492,95 @@
 
     const CACHE_KEY = 'vts_data_cache_v2';
 
+    // Türkçe karakter, boşluk ve büyük/küçük harf duyarsız plaka eşitleyici
+    function normPlate(p) {
+      if (!p) return "";
+      var letters = { 
+        "İ": "I", "I": "I", "ı": "I", "i": "I",
+        "Ş": "S", "ş": "S", "Ğ": "G", "ğ": "G",
+        "Ü": "U", "ü": "U", "Ö": "O", "ö": "O",
+        "Ç": "C", "ç": "C"
+      };
+      var s = p.toString().toUpperCase().trim();
+      var clean = "";
+      for (var i = 0; i < s.length; i++) {
+        clean += (letters[s[i]] !== undefined) ? letters[s[i]] : s[i];
+      }
+      return clean.replace(/\s+/g, '');
+    }
+
+    // Bir plakaya ait EN GÜNCEL (aktif) açık seferi bulur (eski yetim kayıtlara takılmaz)
+    function getActiveTripForPlate(plate) {
+      if (!RECORDS || !Array.isArray(RECORDS) || RECORDS.length === 0) return null;
+      const np = normPlate(plate);
+      const openTrips = RECORDS.filter(r => 
+        normPlate(r.Plaka) === np && 
+        String(r.Durum || '').trim().toUpperCase() === 'AÇIK'
+      );
+      if (openTrips.length === 0) return null;
+      if (openTrips.length === 1) return openTrips[0];
+      // Birden fazla açık kayıt varsa EN GÜNCELİNİ (ID'ye göre en son açılanı) baz al
+      return openTrips.sort((a, b) => Number(b.ID || 0) - Number(a.ID || 0))[0];
+    }
+
+    // Bir plakaya ait tüm açık seferleri listeler (yetim sefer kontrolü için)
+    function getAllActiveTripsForPlate(plate) {
+      if (!RECORDS || !Array.isArray(RECORDS) || RECORDS.length === 0) return [];
+      const np = normPlate(plate);
+      return RECORDS.filter(r => 
+        normPlate(r.Plaka) === np && 
+        String(r.Durum || '').trim().toUpperCase() === 'AÇIK'
+      ).sort((a, b) => Number(b.ID || 0) - Number(a.ID || 0));
+    }
+
+    function getRecordTimestamp(r) {
+      if (!r) return 0;
+      const d = parseDateStr(r.Tarih);
+      if (d) {
+        let t = d.getTime();
+        const timeStr = r['Dönüş Saati'] || r['Çıkış Saati'];
+        if (timeStr && typeof timeStr === 'string' && timeStr.includes(':')) {
+          const parts = timeStr.split(':');
+          const h = parseInt(parts[0], 10) || 0;
+          const m = parseInt(parts[1], 10) || 0;
+          const s = parseInt(parts[2], 10) || 0;
+          t += (h * 3600 + m * 60 + s) * 1000;
+        }
+        return t;
+      }
+      const idNum = Number(r.ID);
+      if (!isNaN(idNum) && idNum > 1577836800000) return idNum;
+      return idNum || 0;
+    }
+
+    // Bir plakaya ait EN SON KAPANAN sefer kaydını bulur
+    function getLastClosedTrip(plate) {
+      if (!RECORDS || !Array.isArray(RECORDS) || RECORDS.length === 0) return null;
+      const np = normPlate(plate);
+      if (!np) return null;
+
+      const closedTrips = RECORDS.filter(r => {
+        if (normPlate(r.Plaka) !== np) return false;
+        const durum = String(r.Durum || '').trim().toUpperCase();
+        const rawDonus = r['Dönüş KM'];
+        const donusKm = Number(String(rawDonus !== undefined && rawDonus !== null ? rawDonus : '').replace(/[^\d]/g, ''));
+        const hasValidDonus = !isNaN(donusKm) && donusKm > 0;
+        const isClosed = durum === 'KAPALI' || (durum !== 'AÇIK' && hasValidDonus);
+        return isClosed && hasValidDonus;
+      });
+
+      if (closedTrips.length === 0) return null;
+      if (closedTrips.length === 1) return closedTrips[0];
+
+      // Birden fazla kapalı sefer varsa zamana ve satır sırasına göre en son kapananı baz al
+      return closedTrips.sort((a, b) => {
+        const timeA = getRecordTimestamp(a);
+        const timeB = getRecordTimestamp(b);
+        if (timeB !== timeA) return timeB - timeA;
+        return Number(b.ID || 0) - Number(a.ID || 0);
+      })[0];
+    }
+
     function applyData(d) {
       if (!d) return;
       RECORDS = d.records || [];
@@ -1509,9 +1605,17 @@
       
       const urlParams = new URLSearchParams(window.location.search);
       const pPlate = urlParams.get('p');
-      if (pPlate && !window.qrTriggered && VEHICLES.length > 0) {
+      if (pPlate && !window.qrTriggered) {
+        // GÜVENLİK KİLİDİ: Veriler henüz canlı sunucudan veya geçerli bir önbellekten gelmediyse (records boşsa),
+        // acele edip aracı MÜSAİT sanarak Araç Al (checkout) açma! Bekle, sunucudan veri geldiğinde aç!
+        if (!window.hasLoadedRealData && (!RECORDS || RECORDS.length === 0)) {
+          showToast('🔍 Araç durumu sunucudan doğrulanıyor, lütfen bekleyin...', 'ok');
+          return;
+        }
+
         window.qrTriggered = true;
-        const vehicle = VEHICLES.find(v => v.Plaka === pPlate);
+        const targetNp = normPlate(pPlate);
+        const vehicle = VEHICLES.find(v => normPlate(v.Plaka) === targetNp);
         if (vehicle) {
           const isTracked = vehicle.Takip !== 'HAYIR' && vehicle.Takip !== 'False' && vehicle.Takip !== false && vehicle.Takip !== 'no';
           if (isTracked) {
@@ -1547,6 +1651,9 @@
         if (raw) {
           const cached = JSON.parse(raw);
           if (cached && cached.vehicles && cached.vehicles.length > 0) {
+            if (cached.records && cached.records.length > 0) {
+              window.hasLoadedRealData = true;
+            }
             applyData(cached);
             setSync('cached', 'Önbellek');
             return true;
@@ -1586,10 +1693,12 @@
       const timeoutId = setTimeout(() => controller.abort(), 12000); // 12 sn sonra kilitlenmeyi engelle
 
       try {
-        const r = await fetch(SCRIPT_URL, { signal: controller.signal });
+        const fetchUrl = SCRIPT_URL + (SCRIPT_URL.includes('?') ? '&' : '?') + '_nocache=' + Date.now();
+        const r = await fetch(fetchUrl, { cache: 'no-store', signal: controller.signal });
         clearTimeout(timeoutId);
         const d = await r.json();
         if (d && d.ok) {
+          window.hasLoadedRealData = true;
           try {
             localStorage.setItem(CACHE_KEY, JSON.stringify(d));
           } catch(err) {
@@ -1631,7 +1740,7 @@
       });
       grid.innerHTML = '';
       filtered.forEach(v => {
-        const rec = RECORDS.find(r => r.Plaka === v.Plaka && r.Durum === 'AÇIK');
+        const rec = getActiveTripForPlate(v.Plaka);
         const out = !!rec;
         const div = document.createElement('div'); div.className = 'qr-card' + (out ? ' out' : '');
         div.innerHTML = `
@@ -1651,14 +1760,20 @@
     }
 
     function openAction(plate) {
-      activeVehicle = VEHICLES.find(v => v.Plaka === plate);
-      const rec = RECORDS.find(r => r.Plaka === plate && r.Durum === 'AÇIK');
+      const np = normPlate(plate);
+      activeVehicle = VEHICLES.find(v => normPlate(v.Plaka) === np);
+      if (!activeVehicle) {
+        showToast('Araç bulunamadı: ' + plate, 'err');
+        return;
+      }
+
+      const rec = getActiveTripForPlate(plate);
       if (rec) { 
         activeRecord = rec;
         const currentSavedDriver = localStorage.getItem('vts_driver_name');
         
         // Admin girişli ise veya aracı alan kişi kendi telefonundan açtıysa doğrudan dönüşü aç
-        if (adminLoggedIn || currentSavedDriver === rec.Sürücü) {
+        if (adminLoggedIn || (currentSavedDriver && rec.Sürücü && normPlate(currentSavedDriver) === normPlate(rec.Sürücü))) {
           openReturn(rec.Sürücü);
           return;
         }
@@ -1668,19 +1783,24 @@
           document.getElementById('mdc-msg').innerHTML = `
             Bu araç <strong style="color:var(--accent);">${rec.Sürücü}</strong> adına zimmetli görünüyor.<br><br>
             Cihazınızda tanımlı kişi: <strong style="color:var(--accent2);">${currentSavedDriver}</strong>.<br><br>
-            Aracı <strong>${rec.Sürücü}</strong> yerine siz mi teslim ediyorsunuz?
+            Ne yapmak istiyorsunuz?
             <div style="font-size:.78rem; color:var(--muted); margin-top:.8rem; line-height:1.4; padding:.6rem; background:rgba(255,255,255,.03); border-radius:4px; border:1px solid var(--border);">
-              ✓ Kendi cihaz tanımlamanız (<strong>${currentSavedDriver}</strong>) bozulmaz.<br>
-              ✓ Teslim eden kişi olarak adınız sisteme işlenir.
+              ✓ <strong>Teslim Et:</strong> Araç ofise döndüyse dönüş kilometresini girerek teslimatı tamamlayın.<br>
+              ✓ <strong>Devral & Sefer Başlat:</strong> Araç teslim edilmiş ama telefon kaydı açık unutulmuşsa, önceki seferi kapatıp adınıza yeni sefer başlatın.
             </div>
           `;
           document.getElementById('mdc-actions').innerHTML = `
-            <button class="btn-primary" id="mdc-confirm-btn" style="width:100%;">EVET, TESLİM ET</button>
+            <button class="btn-primary" id="mdc-confirm-btn" style="width:100%; margin-bottom:.4rem;">🏁 ARACI TESLİM ET (${rec.Sürücü} Adına)</button>
+            <button class="btn-ghost" id="mdc-takeover-btn" style="width:100%; border:1px solid var(--accent2); color:var(--accent2); margin-bottom:.4rem;">🔄 ÖNCEKİ SEFERİ KAPAT VE ADIMA SEFER AÇ</button>
             <button class="btn-ghost" onclick="closeOverlay('m-device-confirm')" style="width:100%;">İPTAL</button>
           `;
           document.getElementById('mdc-confirm-btn').onclick = function() {
             closeOverlay('m-device-confirm');
             openReturn(currentSavedDriver);
+          };
+          document.getElementById('mdc-takeover-btn').onclick = function() {
+            closeOverlay('m-device-confirm');
+            openTakeoverHandover(rec, currentSavedDriver);
           };
           document.getElementById('m-device-confirm').classList.add('open');
           return;
@@ -1689,15 +1809,16 @@
         // Durum 2: Cihazda henüz hiçbir sürücü kayıtlı değil (ilk kez kullanıyor)
         document.getElementById('mdc-msg').innerHTML = `
           Bu araç <strong style="color:var(--accent);">${rec.Sürücü}</strong> adına zimmetli.<br><br>
-          Lütfen teslimatı kimin yaptığını seçin:
+          Lütfen yapılacak işlemi seçin:
         `;
         document.getElementById('mdc-actions').innerHTML = `
-          <button class="btn-primary" id="mdc-btn-iam" style="width:100%; margin-bottom:.3rem;">🙋 Aracı Alan Benim (${rec.Sürücü})</button>
+          <button class="btn-primary" id="mdc-btn-iam" style="width:100%; margin-bottom:.3rem;">🙋 Aracı Alan Benim (${rec.Sürücü}) - Teslim Et</button>
           <button class="btn-ghost" id="mdc-btn-other" style="width:100%; border:1px solid var(--border2); margin-bottom:.3rem;">🤝 Başkası Adına Teslim Ediyorum</button>
           <button class="btn-ghost" onclick="closeOverlay('m-device-confirm')" style="width:100%;">İPTAL</button>
         `;
         document.getElementById('mdc-btn-iam').onclick = function() {
           localStorage.setItem('vts_driver_name', rec.Sürücü);
+          updateDriverProfileUI();
           closeOverlay('m-device-confirm');
           openReturn(rec.Sürücü);
         };
@@ -1710,6 +1831,47 @@
       } else { 
         openCheckout(); 
       }
+    }
+
+    // Unutulan seferi kadrandaki KM ile kapatıp yeni sürücüye tek dokunuşla devir açma
+    function openTakeoverHandover(oldRecord, newDriver) {
+      const lastKm = Number(oldRecord['Çıkış KM']) || 0;
+      const kmPrompt = prompt(
+        `[ZİMMET DEVRİ / UNUTULAN SEFERİ KAPATMA]\n\n` +
+        `Bu araç "${oldRecord.Sürücü}" adına (${lastKm.toLocaleString('tr-TR')} KM ile) zimmetliydi.\n\n` +
+        `Önceki seferi kapatıp "${newDriver}" adına yeni sefer başlatmak için lütfen araç kadranındaki güncel KM'yi girin:`,
+        lastKm > 0 ? lastKm : ''
+      );
+      if (kmPrompt === null) return;
+      const km = Number(kmPrompt.trim());
+      if (!km || isNaN(km) || km < lastKm) {
+        alert(`Hata: Girilen KM (${kmPrompt}), önceki çıkış KM'sinden (${lastKm}) düşük olamaz!`);
+        return;
+      }
+
+      const rTime = new Date().toLocaleTimeString('tr-TR');
+      oldRecord.Durum = 'KAPALI';
+      oldRecord['Dönüş KM'] = km;
+      oldRecord['Dönüş Saati'] = rTime;
+
+      send({ 
+        action: 'return', 
+        id: oldRecord.ID, 
+        plate: oldRecord.Plaka,
+        returnKm: km, 
+        returnTime: rTime, 
+        returnDevice: getDeviceId(), 
+        returnDriverName: newDriver + ' (Devir Teslim)'
+      });
+
+      showToast(`Önceki sefer ${km.toLocaleString('tr-TR')} KM ile kapatıldı. Yeni sefer formu açılıyor...`, 'ok');
+      renderQR();
+
+      setTimeout(() => {
+        openCheckout();
+        const mcKm = document.getElementById('mc-km');
+        if (mcKm) mcKm.value = km;
+      }, 350);
     }
 
     function promptReturnerSelection(rec) {
@@ -1789,10 +1951,19 @@
     }
 
     function openCheckout() {
+      // GÜVENLİK KİLİDİ: Araç zaten zimmetli / AÇIK ise kesinlikle Araç Al ekranını açma!
+      const activeTrip = getActiveTripForPlate(activeVehicle.Plaka);
+      if (activeTrip) {
+        showToast(`⚠️ Bu araç ${activeTrip.Sürücü} adına zimmetli! Önce teslimatı yapılmalıdır.`, 'err');
+        openReturn(activeTrip.Sürücü);
+        return;
+      }
+
       document.getElementById('mc-sub').textContent = activeVehicle.Plaka + ' / ' + activeVehicle.Model;
       document.getElementById('mc-stamp').innerHTML = '⏱ Çıkış Saati: ' + new Date().toLocaleTimeString('tr-TR');
       
-      // Çıkış KM: Sistemdeki son bırakılan sayacı otomatik yükle (Personel KM girmez)
+      // Çıkış KM: Sistemdeki son bırakılan sayacı (son kapanan seferin dönüş kilometresini) otomatik yükle
+      const lastClosed = getLastClosedTrip(activeVehicle.Plaka);
       const autoKm = getVehicleCurrentKm(activeVehicle.Plaka);
       const kmInput = document.getElementById('mc-km');
       const kmLabel = document.getElementById('mc-km-label');
@@ -1803,15 +1974,16 @@
         kmInput.readOnly = true;
         kmInput.style.background = 'rgba(255,255,255,0.06)';
         kmInput.style.cursor = 'not-allowed';
-        if (kmLabel) kmLabel.innerHTML = 'ÇIKIŞ KM <span style="color:var(--accent2);font-size:0.75rem;">(🔒 Otomatik Geldi)</span>';
-        if (kmSub) kmSub.innerHTML = `✅ Son bırakılan sayaç (<strong>${Number(autoKm).toLocaleString('tr-TR')} KM</strong>) otomatik yüklendi. Personel KM girmez.`;
+        const driverInfo = lastClosed && lastClosed.Sürücü ? ` (${lastClosed.Sürücü})` : '';
+        if (kmLabel) kmLabel.innerHTML = `ÇIKIŞ KM <span style="color:var(--accent2);font-size:0.75rem;">(🔒 Son Kapanan: ${Number(autoKm).toLocaleString('tr-TR')} KM)</span>`;
+        if (kmSub) kmSub.innerHTML = `✅ Son kapanan sefer sayacı (<strong>${Number(autoKm).toLocaleString('tr-TR')} KM</strong>${driverInfo}) otomatik aktarıldı. <button type="button" onclick="unlockCheckoutKm()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:0.75rem;padding:0 4px;text-decoration:underline;">✏️ Sayacı Düzelt</button>`;
       } else {
         kmInput.value = '';
         kmInput.readOnly = false;
         kmInput.style.background = 'transparent';
         kmInput.style.cursor = 'text';
         if (kmLabel) kmLabel.innerHTML = 'İLK ÇIKIŞ KM <span style="color:var(--accent);font-size:0.75rem;">(Manuel Giriş)</span>';
-        if (kmSub) kmSub.innerHTML = '⚠️ Bu aracın geçmiş kaydı bulunamadı. Lütfen araçtaki ilk KM göstergesini girin.';
+        if (kmSub) kmSub.innerHTML = '⚠️ Bu aracın geçmiş kaydı bulunamadı. Lütfen araç kadranındaki güncel kilometreyi girin.';
       }
 
       document.getElementById('mc-purpose').value = '';
@@ -1835,6 +2007,25 @@
       document.getElementById('m-checkout').classList.add('open');
     }
 
+    function unlockCheckoutKm() {
+      const kmInput = document.getElementById('mc-km');
+      const kmLabel = document.getElementById('mc-km-label');
+      const kmSub = document.getElementById('mc-km-sub');
+      if (kmInput) {
+        kmInput.readOnly = false;
+        kmInput.style.background = 'rgba(255,255,255,0.12)';
+        kmInput.style.cursor = 'text';
+        kmInput.focus();
+        kmInput.select();
+      }
+      if (kmLabel) {
+        kmLabel.innerHTML = 'ÇIKIŞ KM <span style="color:var(--accent);font-size:0.75rem;">(✏️ Manuel Düzenleme)</span>';
+      }
+      if (kmSub) {
+        kmSub.innerHTML = '⚠️ Araç kadranındaki güncel kilometre bilgisini yazın.';
+      }
+    }
+
     function clearSavedDriver() {
       localStorage.removeItem('vts_driver_name');
       updateDriverProfileUI();
@@ -1844,13 +2035,37 @@
     function selDrv(el, n) { document.querySelectorAll('.driver-chip').forEach(c => c.classList.remove('selected')); el.classList.add('selected'); window.selectedDriver = n; }
 
     async function confirmCheckout() {
+      if (window.isSubmittingAction) return;
+
+      // 1. ZİMMET GÜVENLİK KONTROLÜ
+      const activeTrip = getActiveTripForPlate(activeVehicle.Plaka);
+      if (activeTrip) {
+        alert(`DİKKAT: Bu araç şu anda "${activeTrip.Sürücü}" adına zimmetli görünüyor!\nÖnce mevcut seferin teslim edilmesi gerekmektedir.`);
+        closeOverlay('m-checkout');
+        openReturn(activeTrip.Sürücü);
+        return;
+      }
+
       if (!window.selectedDriver) { alert('Lütfen aracı alan sürücüyü seçin!'); return; }
       const km = document.getElementById('mc-km').value;
       if (!km || isNaN(km)) { alert('Çıkış KM bilgisi bulunamadı!'); return; }
       if (Number(km) > 999999) { alert('Hata: Çıkış KM en fazla 999999 olabilir!'); return; }
-      
+
+      // 2. KİLOMETRE MANTIK KONTROLÜ
+      const autoKm = getVehicleCurrentKm(activeVehicle.Plaka);
+      if (autoKm && Number(km) < autoKm) {
+        const confirmLower = confirm(
+          `⚠️ DİKKAT: Girdiğiniz Çıkış KM (${Number(km).toLocaleString('tr-TR')}), sistemdeki son kapalı sefer sayacından (${Number(autoKm).toLocaleString('tr-TR')} KM) daha düşük!\n\n` +
+          `Eğer araç sayacı gerçekten bu değerdeyse veya önceki sefer kaydında hata yapıldıysa devam etmek için 'Tamam' butonuna basın.`
+        );
+        if (!confirmLower) {
+          return;
+        }
+      }
+
+      window.isSubmittingAction = true;
       const btn = document.getElementById('mc-sub-btn');
-      if (btn) btn.disabled = true;
+      if (btn) { btn.disabled = true; btn.textContent = 'KAYDEDİLİYOR...'; }
       
       const payload = {
         action: 'checkout', id: Date.now(), plate: activeVehicle.Plaka, model: activeVehicle.Model,
@@ -1889,7 +2104,8 @@
       } catch (err) {
         console.warn('[Checkout] Sunucuya aktarım gecikti:', err);
       } finally {
-        if (btn) btn.disabled = false;
+        window.isSubmittingAction = false;
+        if (btn) { btn.disabled = false; btn.textContent = '✅ GÖNDER'; }
       }
     }
 
@@ -1961,6 +2177,8 @@
     }
 
     async function confirmReturn() {
+      if (window.isSubmittingAction) return;
+
       const kmVal = document.getElementById('mr-km').value;
       if (!kmVal || isNaN(kmVal)) { alert('Lütfen araç kadranındaki güncel dönüş kilometresini girin!'); return; }
       const km = Number(kmVal);
@@ -1978,8 +2196,9 @@
         if (!confirm(`DİKKAT: Toplam ${diff} KM yol yaptığınız görünüyor. Değeri doğru girdiğinize emin misiniz?\n\nÇıkış KM: ${cikisKm}\nDönüş KM: ${km}`)) return;
       }
       
+      window.isSubmittingAction = true;
       const btn = document.getElementById('mr-sub-btn');
-      if (btn) btn.disabled = true;
+      if (btn) { btn.disabled = true; btn.textContent = 'KAYDEDİLİYOR...'; }
       
       const returner = window.currentReturnerName || localStorage.getItem('vts_driver_name') || activeRecord.Sürücü;
       const rTime = new Date().toLocaleTimeString('tr-TR');
@@ -1988,6 +2207,17 @@
       activeRecord.Durum = 'KAPALI';
       activeRecord['Dönüş KM'] = km;
       activeRecord['Dönüş Saati'] = rTime;
+
+      // Bu araca ait varsa eski yetim kayıtları da yerel listede güvenle KAPALI yap
+      const targetNp = normPlate(activeVehicle.Plaka);
+      RECORDS.forEach(r => {
+        if (normPlate(r.Plaka) === targetNp && String(r.Durum || '').trim().toUpperCase() === 'AÇIK') {
+          r.Durum = 'KAPALI';
+          if (!r['Dönüş KM']) r['Dönüş KM'] = km;
+          if (!r['Dönüş Saati']) r['Dönüş Saati'] = rTime;
+        }
+      });
+
       closeOverlay('m-return');
       renderQR();
 
@@ -1996,6 +2226,7 @@
         await send({ 
           action: 'return', 
           id: activeRecord.ID, 
+          plate: activeVehicle.Plaka,
           returnKm: km, 
           returnTime: rTime, 
           returnDevice: getDeviceId(), 
@@ -2012,7 +2243,8 @@
       } catch (err) {
         console.warn('[Return] Sunucuya aktarım gecikti:', err);
       } finally {
-        if (btn) btn.disabled = false;
+        window.isSubmittingAction = false;
+        if (btn) { btn.disabled = false; btn.textContent = '🏁 TESLİM ET'; }
       }
     }
 
@@ -2090,60 +2322,116 @@
     }
 
     function getVehicleCurrentKm(plate) {
-      let maxKm = 0;
-      RECORDS.forEach(r => {
-        if (r.Plaka === plate) {
-          const donus = Number(r['Dönüş KM']);
-          const cikis = Number(r['Çıkış KM']);
-          if (!isNaN(donus) && donus > maxKm) maxKm = donus;
-          if (!isNaN(cikis) && cikis > maxKm) maxKm = cikis;
-        }
-      });
-      if (typeof MAINTENANCE_RECORDS !== 'undefined' && Array.isArray(MAINTENANCE_RECORDS)) {
-        MAINTENANCE_RECORDS.forEach(r => {
-          if (r.Plaka === plate) {
-            const mKm = extractKmFromMaint(r);
-            if (mKm && mKm > maxKm) maxKm = mKm;
-          }
-        });
+      if (!plate) return 0;
+      const np = normPlate(plate);
+      if (!np) return 0;
+
+      // 1. KESİN KURAL: Kayıtlardan EN SON KAPANAN seferin Dönüş KM'si
+      const lastClosed = getLastClosedTrip(plate);
+      if (lastClosed) {
+        const rawDonus = lastClosed['Dönüş KM'];
+        const donusKm = Number(String(rawDonus !== undefined && rawDonus !== null ? rawDonus : '').replace(/[^\d]/g, ''));
+        if (!isNaN(donusKm) && donusKm > 0) return donusKm;
       }
-      // Bilinen taban KM değerleri (çevrimdışı / ilk açılış güvenliği)
-      const baseKm = {
-        '06 BFK 860': 301278,
-        '06 BOS 072': 178893,
-        '35 CEB 291': 118611
-      };
-      if (maxKm === 0 && baseKm[plate]) {
-        maxKm = baseKm[plate];
+
+      // 2. Eğer henüz hiç kapalı sefer yoksa ama aktif/açık bir sefer varsa, onun Çıkış KM'si
+      const activeTrip = getActiveTripForPlate(plate);
+      if (activeTrip) {
+        const rawCikis = activeTrip['Çıkış KM'];
+        const cikisKm = Number(String(rawCikis !== undefined && rawCikis !== null ? rawCikis : '').replace(/[^\d]/g, ''));
+        if (!isNaN(cikisKm) && cikisKm > 0) return cikisKm;
       }
-      return maxKm;
+
+      // 3. Hiçbir sefer kaydı yoksa 0 (Form 'İlk Çıkış KM (Manuel Giriş)' moduna geçer)
+      return 0;
     }
 
     function getVehicleLastMaintenance(plate) {
-      const records = MAINTENANCE_RECORDS.filter(r => r.Plaka === plate);
-      if (records.length === 0) return null;
+      if (!plate) return null;
+      const np = normPlate(plate);
+      
+      // 1. BAKIM_KAYITLARI sayfasındaki kayıtlar
+      const records = (MAINTENANCE_RECORDS || []).filter(r => normPlate(r.Plaka) === np);
 
-      const periodic = records.filter(r => (r['İşlem Türü'] || '').toLowerCase().includes('bakım'));
-      const candidateRecords = periodic.length > 0 ? periodic : records;
+      // 2. Araçlar (VEHICLES) sayfasındaki araç nesnesi
+      const vehicleObj = (VEHICLES || []).find(v => normPlate(v.Plaka) === np);
 
-      const sorted = [...candidateRecords].sort((a, b) => {
-        const da = parseDateStr(a.Tarih) || new Date(a.ID || 0);
-        const db = parseDateStr(b.Tarih) || new Date(b.ID || 0);
-        return db - da;
+      const allCandidates = [];
+
+      // BAKIM_KAYITLARI sayfasından adayları ekle
+      records.forEach(r => {
+        const isBakim = (r['İşlem Türü'] || '').toLowerCase().includes('bakım') || !r['İşlem Türü'];
+        const d = parseDateStr(r.Tarih) || new Date(Number(r.ID) || 0);
+        const km = extractKmFromMaint(r);
+        allCandidates.push({
+          source: 'maint_sheet',
+          record: r,
+          dateStr: r.Tarih || (d ? formatGasDate(d, false) : '—'),
+          dateObj: d,
+          km: km,
+          type: r['İşlem Türü'] || 'Bakım',
+          company: r['Yıkama Firması'] || '—',
+          price: r.Ücret || 0,
+          notes: r.Notlar || '',
+          isBakim: isBakim
+        });
       });
 
-      // Öncelikle KM kaydı bulunan en güncel bakımı bul, yoksa en son kaydı al
-      const withKm = sorted.filter(r => extractKmFromMaint(r) !== null);
-      const latest = withKm.length > 0 ? withKm[0] : sorted[0];
-      const km = extractKmFromMaint(latest);
+      // Araçlar sayfasında 'Son Bakım Tarihi' veya 'Bakım Tarihi' sütunu varsa onu da aday olarak ekle
+      if (vehicleObj) {
+        const vDateStr = vehicleObj['Son Bakım Tarihi'] || vehicleObj['Bakım Tarihi'] || vehicleObj['Son Bakım'] || vehicleObj['Periyodik Bakım Tarihi'];
+        const vKmRaw = vehicleObj['Son Bakım KM'] || vehicleObj['Bakım KM'] || vehicleObj['Son Bakım Km'];
+        const vKm = vKmRaw ? Number(String(vKmRaw).replace(/[^\d]/g, '')) : null;
+        if (vDateStr) {
+          const d = parseDateStr(vDateStr);
+          allCandidates.push({
+            source: 'vehicle_sheet',
+            record: vehicleObj,
+            dateStr: String(vDateStr).trim(),
+            dateObj: d,
+            km: (vKm && !isNaN(vKm) && vKm > 0) ? vKm : null,
+            type: 'Periyodik Bakım',
+            company: vehicleObj['Servis'] || '—',
+            price: 0,
+            notes: 'Araçlar sayfasından güncellendi',
+            isBakim: true
+          });
+        }
+      }
+
+      if (allCandidates.length === 0) return null;
+
+      // Bakım olanları önceliklendir, yoksa tüm kayıtları al
+      const bakimCandidates = allCandidates.filter(c => c.isBakim);
+      const candidates = bakimCandidates.length > 0 ? bakimCandidates : allCandidates;
+
+      // Kesinlikle gerçek tarihe göre en yeni en başa gelecek şekilde sırala (db - da)
+      candidates.sort((a, b) => {
+        const timeA = a.dateObj ? a.dateObj.getTime() : 0;
+        const timeB = b.dateObj ? b.dateObj.getTime() : 0;
+        return timeB - timeA;
+      });
+
+      // En güncel tarihli kayıt
+      const latest = candidates[0];
+
+      // Eğer en güncel kayıtta KM girilmemişse, adaylar arasındaki en son KM kaydından veya araç sayacından tamamla
+      let resolvedKm = latest.km;
+      if (!resolvedKm) {
+        const candidateWithKm = candidates.find(c => c.km !== null && c.km > 0);
+        if (candidateWithKm) {
+          resolvedKm = candidateWithKm.km;
+        }
+      }
+
       return {
-        record: latest,
-        date: latest.Tarih || '—',
-        km: km,
-        type: latest['İşlem Türü'] || 'Bakım',
-        company: latest['Yıkama Firması'] || '—',
-        price: latest.Ücret || 0,
-        notes: latest.Notlar || ''
+        record: latest.record,
+        date: latest.dateStr || '—',
+        km: resolvedKm,
+        type: latest.type,
+        company: latest.company,
+        price: latest.price,
+        notes: latest.notes
       };
     }
 
@@ -2710,6 +2998,27 @@
     }
     function exportCSV() { alert('Sheet üzerinden indirin'); }
 
+    async function triggerCleanDuplicates() {
+      if (!confirm('Tablodaki aynı gün/araç için çift girilmiş mükerrer kopya kayıtlar taranıp temizlenecek. Onaylıyor musunuz?')) return;
+      showToast('Mükerrer kayıtlar taranıyor ve temizleniyor...', 'ok');
+      try {
+        const res = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          body: JSON.stringify({ action: 'clean_duplicates' })
+        });
+        const data = await res.json();
+        if (data && data.ok) {
+          alert(data.message || 'Mükerrer kayıtlar başarıyla temizlendi.');
+          loadRecords();
+        } else {
+          alert('Sonuç: ' + (data ? (data.message || data.error) : 'İşlem tamamlandı'));
+          loadRecords();
+        }
+      } catch (e) {
+        alert('Sunucuya ulaşılamadı. Lütfen güncellenen Code.gs kodunu Apps Script editörüne yapıştırıp Dağıt (Deploy) ettiğinizden emin olun.');
+      }
+    }
+
     // --- DASHBOARD LOGIC ---
     let dashCharts = {};
     const DASH_COLORS = ['#3266ad','#1d9e75','#d85a30','#5a3ab7','#ba7517','#888780','#d4537e','#378add','#639922'];
@@ -2728,18 +3037,43 @@
 
     function parseDateStr(s) {
       if (!s) return null;
-      if (s instanceof Date) return s;
+      if (s instanceof Date) return isNaN(s.getTime()) ? null : s;
       s = s.toString().trim();
-      if (s.includes('.')) {
-        const parts = s.split('.');
-        if (parts.length >= 3) return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-      } else if (s.includes('/')) {
-        const parts = s.split('/');
-        if (parts.length >= 3) return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-      } else if (s.includes('-')) {
-        const parts = s.split('-');
-        if (parts.length >= 3) return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      if (!s) return null;
+
+      // 1. Ayırıcı bazlı (., /, -) tarih ayrıştırma
+      const match = s.match(/^(\d{1,4})[./-](\d{1,2})[./-](\d{1,4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+      if (match) {
+        const p1 = parseInt(match[1], 10);
+        const p2 = parseInt(match[2], 10);
+        const p3 = parseInt(match[3], 10);
+        let year, month, day;
+
+        if (p1 > 1000) {
+          // YYYY-MM-DD veya YYYY.MM.DD
+          year = p1;
+          month = p2 - 1;
+          day = p3;
+        } else if (p3 > 1000) {
+          // DD.MM.YYYY veya DD-MM-YYYY veya DD/MM/YYYY
+          year = p3;
+          month = p2 - 1;
+          day = p1;
+        } else {
+          // Varsayılan DD.MM.YY
+          year = 2000 + p3;
+          month = p2 - 1;
+          day = p1;
+        }
+
+        const hour = match[4] ? parseInt(match[4], 10) : 0;
+        const min = match[5] ? parseInt(match[5], 10) : 0;
+        const sec = match[6] ? parseInt(match[6], 10) : 0;
+        const d = new Date(year, month, day, hour, min, sec);
+        if (!isNaN(d.getTime())) return d;
       }
+
+      // 2. Doğal Date ayrıştırma (ISO veya standart metin)
       const d = new Date(s);
       return isNaN(d.getTime()) ? null : d;
     }
@@ -2780,6 +3114,26 @@
     const TURKISH_MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
     function getMonthLabel(date) {
       return `${TURKISH_MONTHS[date.getMonth()]} ${date.getFullYear()}`;
+    }
+
+    async function forceRefreshData(btn) {
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '⏳ Çekiliyor...';
+      }
+      try {
+        localStorage.removeItem(CACHE_KEY);
+        setSync('syncing', 'Sheet taranıyor...');
+        await loadRecords(false);
+        renderDashboard();
+      } catch (err) {
+        console.error('Yenileme hatası:', err);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = '🔄 Canlı Veriyi Çek';
+        }
+      }
     }
 
     function dashFilteredData() {

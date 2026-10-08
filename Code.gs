@@ -292,6 +292,47 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
     
+    var data = sheet.getDataRange().getValues();
+    var headers = data[0].map(function(h) { return h.toString().trim(); });
+    var plateColIdx = headers.indexOf("Plaka");
+    var durumColIdx = headers.indexOf("Durum");
+    var cikisKmColIdx = headers.indexOf("Çıkış KM");
+    var donusKmColIdx = headers.indexOf("Dönüş KM");
+    var donusSaatiColIdx = headers.indexOf("Dönüş Saati");
+    var kmFarkiColIdx = headers.indexOf("KM Farkı");
+    var donusCihazColIdx = headers.indexOf("Dönüş Cihaz");
+    var teslimEdenColIdx = headers.indexOf("Teslim Eden");
+    
+    // GÜVENLİK VE MÜKERRER KAYIT KİLİDİ:
+    // Bu aracın daha önceden açık unutulmuş veya kapatılmamış seferi varsa,
+    // tabloda çift açık kayıt ya da yetim sefer kalmaması için önceki seferi otomatik kapat!
+    var targetPlateClean = cleanStringForCompare(params.plate);
+    var newCheckoutKm = Number(params.checkoutKm) || 0;
+    
+    if (plateColIdx !== -1 && durumColIdx !== -1) {
+      for (var i = 1; i < data.length; i++) {
+        var rowPlate = cleanStringForCompare(data[i][plateColIdx]);
+        var rowDurum = String(data[i][durumColIdx] || '').trim().toUpperCase();
+        
+        if (rowPlate === targetPlateClean && rowDurum === "AÇIK") {
+          var rowNum = i + 1;
+          var prevCikisKm = Number(data[i][cikisKmColIdx]) || 0;
+          var diff = (newCheckoutKm > 0 && newCheckoutKm >= prevCikisKm) ? (newCheckoutKm - prevCikisKm) : 0;
+          var closeKm = newCheckoutKm > 0 ? newCheckoutKm : prevCikisKm;
+          
+          sheet.getRange(rowNum, durumColIdx + 1).setValue("KAPALI");
+          if (donusKmColIdx !== -1) sheet.getRange(rowNum, donusKmColIdx + 1).setValue(closeKm);
+          if (donusSaatiColIdx !== -1) sheet.getRange(rowNum, donusSaatiColIdx + 1).setValue(params.checkoutTime || "18:00:00");
+          if (kmFarkiColIdx !== -1) sheet.getRange(rowNum, kmFarkiColIdx + 1).setValue(diff);
+          if (donusCihazColIdx !== -1) sheet.getRange(rowNum, donusCihazColIdx + 1).setValue(params.checkoutDevice || "SİSTEM_OTO");
+          if (teslimEdenColIdx !== -1) {
+            sheet.getRange(rowNum, teslimEdenColIdx + 1).setValue((params.driver || "Sürücü") + " (Yeni Çıkışla Kapatıldı)");
+          }
+          Logger.log("Önceki açık sefer otomatik kapatıldı: Satır " + rowNum + " (" + params.plate + ")");
+        }
+      }
+    }
+    
     var recordObj = {
       "ID": params.id,
       "Tarih": params.date,
@@ -329,6 +370,8 @@ function doPost(e) {
     var data = sheet.getDataRange().getValues();
     var headers = data[0].map(function(h) { return h.toString().trim(); });
     var idColIdx = headers.indexOf("ID");
+    var plateColIdx = headers.indexOf("Plaka");
+    var durumColIdx = headers.indexOf("Durum");
     var checkoutKmColIdx = headers.indexOf("Çıkış KM");
     
     if (idColIdx === -1 || checkoutKmColIdx === -1) {
@@ -336,37 +379,85 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
     
-    // Açık kaydı ID ile bul
-    for (var i = 1; i < data.length; i++) {
-      if (data[i][idColIdx] == params.id) {
-        var checkoutKm = data[i][checkoutKmColIdx];
-        var diff = Number(params.returnKm) - Number(checkoutKm);
-        
-        if (diff < 0) {
-          return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "HATA: Dönüş KM (" + params.returnKm + "), çıkış KM'den (" + checkoutKm + ") düşük olamaz!" }))
-            .setMimeType(ContentService.MimeType.JSON);
+    var targetRowIndex = -1;
+    // 1. Doğrudan gönderilen ID ile eşleşen açık kaydı bul
+    if (params.id) {
+      for (var i = 1; i < data.length; i++) {
+        if (data[i][idColIdx] == params.id) {
+          targetRowIndex = i;
+          break;
         }
-        
-        var updateObj = {
-          "Dönüş KM": params.returnKm,
-          "Dönüş Saati": params.returnTime,
-          "KM Farkı": diff,
-          "Dönüş Cihaz": params.returnDevice,
-          "Durum": "KAPALI"
-        };
-        
-        if (params.returnDriverName) {
-          updateObj["Teslim Eden"] = params.returnDriverName;
-        }
-        
-        updateRowById(sheet, params.id, updateObj);
-        
-        return ContentService.createTextOutput(JSON.stringify({ ok: true }))
-          .setMimeType(ContentService.MimeType.JSON);
       }
     }
     
+    // 2. ID ile bulunamazsa ve Plaka verildiyse, o plakaya ait EN GÜNCEL (en son) AÇIK kaydı bul
+    if (targetRowIndex === -1 && params.plate && plateColIdx !== -1 && durumColIdx !== -1) {
+      var cleanTargetP = cleanStringForCompare(params.plate);
+      for (var j = data.length - 1; j >= 1; j--) {
+        if (cleanStringForCompare(data[j][plateColIdx]) === cleanTargetP && String(data[j][durumColIdx] || '').trim().toUpperCase() === "AÇIK") {
+          targetRowIndex = j;
+          break;
+        }
+      }
+    }
+    
+    if (targetRowIndex !== -1) {
+      var checkoutKm = data[targetRowIndex][checkoutKmColIdx];
+      var diff = Number(params.returnKm) - Number(checkoutKm);
+      
+      if (diff < 0) {
+        return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "HATA: Dönüş KM (" + params.returnKm + "), çıkış KM'den (" + checkoutKm + ") düşük olamaz!" }))
+          .setMimeType(ContentService.MimeType.JSON);
+      }
+      
+      var rowIdToUpdate = data[targetRowIndex][idColIdx];
+      var updateObj = {
+        "Dönüş KM": params.returnKm,
+        "Dönüş Saati": params.returnTime,
+        "KM Farkı": diff,
+        "Dönüş Cihaz": params.returnDevice,
+        "Durum": "KAPALI"
+      };
+      
+      if (params.returnDriverName) {
+        updateObj["Teslim Eden"] = params.returnDriverName;
+      }
+      
+      updateRowById(sheet, rowIdToUpdate, updateObj);
+      
+      // Güvenlik: Eğer bu plakaya ait arkada kalmış başka yetim açık kayıtlar varsa onları da KAPALI yap
+      if (plateColIdx !== -1 && durumColIdx !== -1) {
+        var finalCleanP = cleanStringForCompare(data[targetRowIndex][plateColIdx]);
+        for (var k = 1; k < data.length; k++) {
+          if (k !== targetRowIndex && cleanStringForCompare(data[k][plateColIdx]) === finalCleanP && String(data[k][durumColIdx] || '').trim().toUpperCase() === "AÇIK") {
+            sheet.getRange(k + 1, durumColIdx + 1).setValue("KAPALI");
+          }
+        }
+      }
+      
+      return ContentService.createTextOutput(JSON.stringify({ ok: true }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+    
     return ContentService.createTextOutput(JSON.stringify({ ok: false, error: "İlgili açık kayıt bulunamadı" }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  // ----------------------------------------------------
+  // D. TABLO ONARIM VE TEMİZLİK (repair_open_records)
+  // ----------------------------------------------------
+  else if (params.action === 'repair_open_records') {
+    var resMsg = tablolariOnar();
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, message: resMsg }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  // ----------------------------------------------------
+  // E. MÜKERRER KAYITLARI SİL / TEMİZLE (clean_duplicates)
+  // ----------------------------------------------------
+  else if (params.action === 'clean_duplicates') {
+    var resMsg = mukerrerKayitlariTemizle();
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, message: resMsg }))
       .setMimeType(ContentService.MimeType.JSON);
   }
   
@@ -377,6 +468,66 @@ function doPost(e) {
 // =========================================================================
 // 3. DOĞRUDAN ÇALIŞTIRMA YARDIMCISI (APPS SCRIPT İÇİNDEN "ÇALIŞTIR" DEMEK İÇİN)
 // =========================================================================
+/**
+ * Tablodaki tüm mükerrer ve yetim AÇIK seferleri tarar ve temizler.
+ * Her plaka için yalnızca EN SON açık seferi bırakır, öncekileri güvenle kapatır.
+ */
+function tablolariOnar() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getSheetSafe(ss, "Kayıtlar");
+  if (!sheet || sheet.getLastRow() <= 1) return "Kayıtlar sayfası boş.";
+  
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0].map(function(h) { return h.toString().trim(); });
+  var plateColIdx = headers.indexOf("Plaka");
+  var durumColIdx = headers.indexOf("Durum");
+  var cikisKmColIdx = headers.indexOf("Çıkış KM");
+  var donusKmColIdx = headers.indexOf("Dönüş KM");
+  var donusSaatiColIdx = headers.indexOf("Dönüş Saati");
+  var kmFarkiColIdx = headers.indexOf("KM Farkı");
+  var teslimEdenColIdx = headers.indexOf("Teslim Eden");
+  
+  if (plateColIdx === -1 || durumColIdx === -1) return "Plaka veya Durum sütunu bulunamadı.";
+  
+  var openByPlate = {};
+  for (var i = 1; i < data.length; i++) {
+    var durum = String(data[i][durumColIdx] || '').trim().toUpperCase();
+    if (durum === "AÇIK") {
+      var plk = cleanStringForCompare(data[i][plateColIdx]);
+      if (!openByPlate[plk]) openByPlate[plk] = [];
+      openByPlate[plk].push(i);
+    }
+  }
+  
+  var count = 0;
+  for (var p in openByPlate) {
+    var rows = openByPlate[p];
+    if (rows.length > 1) {
+      // Yalnızca en son açılan kayıt AÇIK kalsın; öncekileri kapat
+      for (var r = 0; r < rows.length - 1; r++) {
+        var rowIdx = rows[r];
+        var rowNum = rowIdx + 1;
+        var nextRowIdx = rows[r + 1];
+        var cKm = Number(data[rowIdx][cikisKmColIdx]) || 0;
+        var nextCKm = Number(data[nextRowIdx][cikisKmColIdx]) || cKm;
+        var dKm = nextCKm >= cKm ? nextCKm : cKm;
+        var diff = dKm - cKm;
+        
+        sheet.getRange(rowNum, durumColIdx + 1).setValue("KAPALI");
+        if (donusKmColIdx !== -1) sheet.getRange(rowNum, donusKmColIdx + 1).setValue(dKm);
+        if (donusSaatiColIdx !== -1) sheet.getRange(rowNum, donusSaatiColIdx + 1).setValue("18:00:00");
+        if (kmFarkiColIdx !== -1) sheet.getRange(rowNum, kmFarkiColIdx + 1).setValue(diff);
+        if (teslimEdenColIdx !== -1) sheet.getRange(rowNum, teslimEdenColIdx + 1).setValue("Sistem (Mükerrer Düzeltme)");
+        count++;
+      }
+    }
+  }
+  
+  var msg = "Onarım tamamlandı: Toplam " + count + " adet yetim açık sefer kapatıldı.";
+  Logger.log(msg);
+  return msg;
+}
+
 /**
  * Apps Script editöründe üstteki fonksiyon listesinden "tablolariGuncelle" seçip
  * "Çalıştır" (Run) butonuna basarak KM sütununu anında açabilirsiniz.
@@ -412,3 +563,101 @@ function tablolariGuncelle() {
     return "KM sütunu zaten mevcut.";
   }
 }
+
+/**
+ * Tablodaki tüm mükerrer (aynı gün/araç için çift tıklanarak girilmiş klon) seferleri temizler.
+ * Apps Script editöründe üstteki fonksiyon listesinden "mukerrerKayitlariTemizle" seçip
+ * "Çalıştır" (Run) butonuna basarak doğrudan çalıştırabilirsiniz.
+ */
+function mukerrerKayitlariTemizle() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = getSheetSafe(ss, "Kayıtlar");
+  if (!sheet || sheet.getLastRow() <= 1) return "Kayıtlar sayfası boş.";
+  
+  var data = sheet.getDataRange().getValues();
+  var headers = data[0].map(function(h) { return h.toString().trim(); });
+  var idColIdx = headers.indexOf("ID");
+  var plateColIdx = headers.indexOf("Plaka");
+  var dateColIdx = headers.indexOf("Tarih");
+  var cikisKmColIdx = headers.indexOf("Çıkış KM");
+  var donusKmColIdx = headers.indexOf("Dönüş KM");
+  var kmFarkiColIdx = headers.indexOf("KM Farkı");
+  var guzergahColIdx = headers.indexOf("Güzergah");
+  var durumColIdx = headers.indexOf("Durum");
+  
+  if (plateColIdx === -1 || dateColIdx === -1 || cikisKmColIdx === -1) {
+    return "Gerekli sütunlar (Plaka, Tarih, Çıkış KM) bulunamadı.";
+  }
+  
+  var rowsToDelete = [];
+  var seen = {};
+  
+  for (var i = 1; i < data.length; i++) {
+    if (seen[i]) continue;
+    
+    var plk1 = cleanStringForCompare(data[i][plateColIdx]);
+    var tar1 = String(data[i][dateColIdx]).trim();
+    var cKm1 = Number(data[i][cikisKmColIdx]) || 0;
+    var id1 = Number(data[i][idColIdx]) || 0;
+    
+    var group = [i];
+    
+    for (var j = i + 1; j < data.length; j++) {
+      if (seen[j]) continue;
+      
+      var plk2 = cleanStringForCompare(data[j][plateColIdx]);
+      var tar2 = String(data[j][dateColIdx]).trim();
+      var cKm2 = Number(data[j][cikisKmColIdx]) || 0;
+      var id2 = Number(data[j][idColIdx]) || 0;
+      
+      // Aynı plaka, aynı tarih ve aynı çıkış KM'si
+      if (plk1 === plk2 && tar1 === tar2 && cKm1 === cKm2) {
+        var timeDiffSec = Math.abs(id1 - id2) / 1000;
+        var diff1 = Number(data[i][kmFarkiColIdx]) || 0;
+        var diff2 = Number(data[j][kmFarkiColIdx]) || 0;
+        
+        // 15 dakika içinde girilmiş çift tıklama ya da 0 km farkı olan klon kayıt
+        if (timeDiffSec < 900 || diff1 === 0 || diff2 === 0) {
+          group.push(j);
+          seen[j] = true;
+        }
+      }
+    }
+    
+    if (group.length > 1) {
+      seen[i] = true;
+      // Gruptaki en dolu / geçerli kaydı TUT, diğer kopyaları sil
+      group.sort(function(a, b) {
+        var kmFarkA = Number(data[a][kmFarkiColIdx]) || 0;
+        var kmFarkB = Number(data[b][kmFarkiColIdx]) || 0;
+        if (kmFarkB !== kmFarkA) return kmFarkB - kmFarkA;
+        var guzLenA = guzergahColIdx !== -1 ? String(data[a][guzergahColIdx] || '').length : 0;
+        var guzLenB = guzergahColIdx !== -1 ? String(data[b][guzergahColIdx] || '').length : 0;
+        if (guzLenB !== guzLenA) return guzLenB - guzLenA;
+        return (Number(data[b][idColIdx]) || 0) - (Number(data[a][idColIdx]) || 0);
+      });
+      
+      // group[0] kalacak, group[1..] silinecek
+      for (var k = 1; k < group.length; k++) {
+        rowsToDelete.push(group[k] + 1); // sheet row index (1-indexed)
+      }
+    }
+  }
+  
+  if (rowsToDelete.length === 0) {
+    Logger.log("Mükerrer kayıt bulunamadı. Tablo temiz.");
+    return "Mükerrer kayıt bulunamadı. Tablo tamamen temiz.";
+  }
+  
+  // Satır numaralarını BÜYÜKTEN KÜÇÜĞE doğru sırala ve sil (indekslerin kaymaması için)
+  rowsToDelete.sort(function(a, b) { return b - a; });
+  
+  for (var d = 0; d < rowsToDelete.length; d++) {
+    sheet.deleteRow(rowsToDelete[d]);
+  }
+  
+  var resultMsg = "Başarıyla " + rowsToDelete.length + " adet mükerrer (kopya/çift tıklama) satır silindi ve tablo temizlendi.";
+  Logger.log(resultMsg);
+  return resultMsg;
+}
+
